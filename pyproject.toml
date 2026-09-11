@@ -14,6 +14,10 @@ extend-exclude = ["artifacts", "releases", "manuscript"]
 select = ["E", "F", "W", "I", "B", "UP", "NPY", "RUF", "S102"]
 ignore = ["RUF001", "RUF002", "RUF003", "E741", "B905"]
 
+[tool.ruff.lint.pycodestyle]
+# E501 is measured in display width (CJK characters count double); Chinese paper strings need headroom
+max-line-length = 150
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "B011"]
 
