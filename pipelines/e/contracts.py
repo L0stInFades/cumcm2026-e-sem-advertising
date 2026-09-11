@@ -42,7 +42,12 @@ def _bounce_and_duration(df: pd.DataFrame) -> list[str]:
             errors.append(f"跳出率 out of range {value!r}")
     for value in df["平均访问时长"].astype(str):
         v = value.strip()
-        if v != "/" and not _DURATION.match(v):
+        if v == "/" or _DURATION.match(v):
+            continue
+        try:  # zero-visit rows carry a bare numeric 0 instead of "00:00:00"
+            if float(v) < 0:
+                errors.append(f"平均访问时长 negative {value!r}")
+        except ValueError:
             errors.append(f"平均访问时长 unparsable {value!r}")
     return errors[:20]
 
@@ -51,10 +56,16 @@ INPUT_CONTRACTS: dict[str, FrameContract] = {
     "附件1__Sheet1": FrameContract(
         name="E.附件1.Sheet1.单元日消费",
         columns=(
-            Column("日期", "datetime"), Column("方案ID", "int"), Column("推广单元ID", "int"),
-            Column("展现量", "int", min=0), Column("点击量", "int", min=0), Column("消费额", "float", min=0),
-            Column("上方位展现量", "int", min=0), Column("上方首位展现量", "int", min=0),
-            Column("上方位点击量", "int", min=0), Column("上方位消费额", "float", min=0),
+            Column("日期", "datetime"),
+            Column("方案ID", "int"),
+            Column("推广单元ID", "int"),
+            Column("展现量", "int", min=0),
+            Column("点击量", "int", min=0),
+            Column("消费额", "float", min=0),
+            Column("上方位展现量", "int", min=0),
+            Column("上方首位展现量", "int", min=0),
+            Column("上方位点击量", "int", min=0),
+            Column("上方位消费额", "float", min=0),
         ),
         min_rows=2000,
         checks=(_funnel_consistent,),
@@ -68,9 +79,15 @@ INPUT_CONTRACTS: dict[str, FrameContract] = {
     "附件1__Sheet3": FrameContract(
         name="E.附件1.Sheet3.关键词年度统计",
         columns=(
-            Column("序号", "int", unique=True, min=1), Column("关键词", "int"), Column("方案ID", "int"),
-            Column("推广单元ID", "int"), Column("消费额", "float", min=0), Column("点击量", "int", min=0),
-            Column("浏览量", "int", min=0), Column("跳出率", "any"), Column("平均访问时长", "any"),
+            Column("序号", "int", unique=True, min=1),
+            Column("关键词", "int"),
+            Column("方案ID", "int"),
+            Column("推广单元ID", "int"),
+            Column("消费额", "float", min=0),
+            Column("点击量", "int", min=0),
+            Column("浏览量", "int", min=0),
+            Column("跳出率", "any"),
+            Column("平均访问时长", "any"),
         ),
         min_rows=2000,
         checks=(_bounce_and_duration,),
@@ -78,13 +95,7 @@ INPUT_CONTRACTS: dict[str, FrameContract] = {
 }
 
 RESULT_CONTRACTS: list[WorkbookContract] = [
-    WorkbookContract("result2.xlsx", "result2.xlsx", (
-        SheetContract("Sheet1", min_rows=2000, header_len=8),
-    )),
-    WorkbookContract("result3.xlsx", "result3.xlsx", (
-        SheetContract("Sheet1", min_rows=16, header_len=9),
-    )),
-    WorkbookContract("result4.xlsx", "result4.xlsx", (
-        SheetContract("Sheet1", min_rows=7, header_len=9),
-    )),
+    WorkbookContract("result2.xlsx", "result2.xlsx", (SheetContract("Sheet1", min_rows=2000, header_len=8),)),
+    WorkbookContract("result3.xlsx", "result3.xlsx", (SheetContract("Sheet1", min_rows=16, header_len=9),)),
+    WorkbookContract("result4.xlsx", "result4.xlsx", (SheetContract("Sheet1", min_rows=7, header_len=9),)),
 ]
