@@ -11,7 +11,7 @@ from scipy import stats
 from pipelines.e.calendar import day_features
 
 TARGETS: dict[str, dict[str, Any]] = {
-    "log_eff": {"label": "效率乘子 log ε", "transform": "exp"},
+    "log_eff": {"label": "效率乘子 log eff", "transform": "exp"},
     "log_cpc": {"label": "log CPC", "transform": "exp"},
     "logit_ctr": {"label": "logit CTR", "transform": "expit"},
     "logit_top": {"label": "logit 上方位占比", "transform": "expit"},

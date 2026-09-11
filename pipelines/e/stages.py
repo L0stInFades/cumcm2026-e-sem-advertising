@@ -346,7 +346,7 @@ def _solve_unit_day(
 
 
 def _day_efficiency(ud: pd.DataFrame, units: pd.DataFrame, dates: pd.DatetimeIndex) -> dict[int, dict[str, Any]]:
-    """Calendar-model expectation of the day efficiency multiplier E[ε_{u,d}] for each unit and date."""
+    """Calendar-model expectation of the day efficiency multiplier E[eff_{u,d}] for each unit and date."""
     feats = day_features(dates)
     out: dict[int, dict[str, Any]] = {}
     for _, row in units.iterrows():
@@ -378,8 +378,8 @@ def _sensitivity(
         ("基准", {}),
         ("上限倍数 2", {"cap": 2.0}),
         ("上限倍数 8", {"cap": 8.0}),
-        ("弹性 γ ×0.9", {"gamma_scale": 0.9}),
-        ("弹性 γ ×1.1", {"gamma_scale": 1.1}),
+        ("弹性 gamma x0.9", {"gamma_scale": 0.9}),
+        ("弹性 gamma x1.1", {"gamma_scale": 1.1}),
         ("预算 −20%", {"budget_scale": 0.8}),
         ("预算 +20%", {"budget_scale": 1.2}),
         ("剔除问题词", {"exclude_problem": True}),

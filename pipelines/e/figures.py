@@ -148,7 +148,7 @@ def fig_response_curves(ctx: StageContext, ud: pd.DataFrame, units: pd.DataFrame
         ax.plot(xs, row["mean_daily_clicks"] * (xs / row["mean_daily_spend"]) ** row["gamma"], color="#D55E00", lw=1.4)
         ax.set_xscale("log")
         ax.set_yscale("log")
-        ax.set_title(f"{unit}  γ={row['gamma']:.2f}" + ("" if row["gamma_source"] == "unit" else "*"), fontsize=7.5)
+        ax.set_title(f"{unit}  gamma={row['gamma']:.2f}" + ("" if row["gamma_source"] == "unit" else "*"), fontsize=7.5)
         ax.tick_params(labelsize=6)
     fig.supxlabel("日消费额 / 元（对数）", fontsize=9)
     fig.supylabel("日点击量 / 次（对数）", fontsize=9)
