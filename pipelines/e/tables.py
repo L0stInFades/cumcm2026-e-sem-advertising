@@ -409,7 +409,6 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
     mnames = {"calendar": "日历回归", "seasonal_naive": "季节朴素", "mean28": "28 日均值"}
     bt["target_name"] = bt["target"].map(tnames)
     bt["model_name"] = bt["model"].map(mnames)
-    bt["mape_pct"] = 100 * bt["mape_raw"]
     bt["cov_pct"] = 100 * bt["coverage80"]
     bt["pinball"] = bt["pinball10"] + bt["pinball90"]
     bt = bt.sort_values(["target", "model"])
@@ -422,7 +421,6 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
             ("model_name", "模型", "s"),
             ("mae", "MAE", ".3f"),
             ("rmse", "RMSE", ".3f"),
-            ("mape_pct", "原尺度 MAPE/\\%", ".1f"),
             ("pinball", "Pinball(0.1+0.9)", ".3f"),
             ("cov_pct", "80\\% 覆盖率/\\%", ".1f"),
         ],

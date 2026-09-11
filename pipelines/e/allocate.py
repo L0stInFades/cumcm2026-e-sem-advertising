@@ -85,6 +85,8 @@ def solve_group(
     if n == 0 or budget <= 0:
         return {"x": x, "selected": x > 0, "objective": 0.0, "spent": 0.0, "budget": float(budget), "n_selected": 0}
     positive = a > 0
+    if budget < min_spend:  # not even one keyword can receive the minimum practical amount
+        return {"x": x, "selected": x > 0, "objective": 0.0, "spent": 0.0, "budget": float(budget), "n_selected": 0}
     if min_spend <= 0:
         x[positive] = water_filling(a[positive], gamma, caps[positive], budget, tol)
     else:

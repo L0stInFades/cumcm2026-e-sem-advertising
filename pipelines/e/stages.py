@@ -753,6 +753,7 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
     _save(ctx, budgets, "budgets")
     active_units = {int(u) for u, b in budget_main.items() if b > 0}
     elig = _eligible(params, active_units, problem_cap)
+    elig_all = _eligible(params, {int(u) for u in units["推广单元ID"]}, problem_cap)
     _save(ctx, elig, "keyword_parameters")
 
     rows, day_rows, audits, unit_rows = [], [], [], []
@@ -766,8 +767,10 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
         eff_mean = np.exp(f_eff["mean"] + 0.5 * sd_eff**2)
         B = float(budget_main[unit])
         day_cap = float(max(1.5 * day_cap_ref[unit], B / len(dates)))
-        X = alloc.water_filling(eff_mean, gamma, np.full(len(dates), day_cap), B)
-        day_audit = alloc.verify_allocation(X, eff_mean, gamma, np.full(len(dates), day_cap), B, rng)
+        # day split with the same floor: a day is either skipped or receives at least the minimum amount
+        day_caps = np.full(len(dates), day_cap)
+        X = alloc.solve_group(eff_mean, np.ones(len(dates)), gamma, day_caps, B, min_spend=min_spend)["x"]
+        day_audit = alloc.verify_allocation(X, eff_mean, gamma, day_caps, B, rng, floor=min_spend)
         audits.append({"推广单元ID": unit, "level": "days", **{k: v for k, v in day_audit.items() if k != "cvxpy"}})
         f_ctr = unit_fc[unit]["logit_ctr"]
         f_top = unit_fc[unit]["logit_top"]
@@ -775,6 +778,8 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
         kw_sd = float(f_cpc["sd"])
         totals = {k: np.zeros(n_scen) for k in ("clicks", "imp", "views", "regs", "spend")}
         for i, d in enumerate(dates):
+            if X[i] <= 0:
+                continue
             w = (p["rho"] * p["c"]).to_numpy(dtype=float) * float(eff_mean[i])
             s = p["s"].to_numpy(dtype=float)
             caps = _caps(p, float(X[i]), cap_mult)
@@ -879,6 +884,32 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
                 },
             }
         )
+    alt_expected: dict[str, float] = {}
+    for name, budget_series in (("same_period", budget_main), ("annual_avg", budget_alt)):
+        total_regs = 0.0
+        for unit in sorted(int(u) for u, b in budget_series.items() if b > 0):
+            p = elig_all[(elig_all["推广单元ID"] == unit) & elig_all["eligible"]]
+            if p.empty or unit not in unit_fc or "log_eff" not in unit_fc[unit]:
+                continue
+            gamma = float(unit_index.loc[unit, "gamma"])
+            f_eff = unit_fc[unit]["log_eff"]
+            sd_eff = float(np.sqrt(f_eff["sd"] ** 2 + f_eff["month_sd"] ** 2))
+            eff_mean = np.exp(f_eff["mean"] + 0.5 * sd_eff**2)
+            B = float(budget_series[unit])
+            cap_day = float(max(1.5 * day_cap_ref.get(unit, B / len(dates)), B / len(dates)))
+            X = alloc.solve_group(
+                eff_mean, np.ones(len(dates)), gamma, np.full(len(dates), cap_day), B, min_spend=min_spend
+            )["x"]
+            for i in range(len(dates)):
+                if X[i] <= 0:
+                    continue
+                w = (p["rho"] * p["c"]).to_numpy(dtype=float) * float(eff_mean[i])
+                s = p["s"].to_numpy(dtype=float)
+                total_regs += alloc.solve_group(
+                    w, s, gamma, _caps(p, float(X[i]), cap_mult), float(X[i]), min_spend=min_spend
+                )["objective"]
+        alt_expected[name] = total_regs
+    ctx.write_json("budget_alternatives.json", alt_expected)
     plan = pd.DataFrame(rows)
     _save(ctx, plan, "plan")
     days = pd.DataFrame(day_rows)
@@ -906,9 +937,9 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
         ctx.number(f"BacktestCalendarMae{key}", cal.loc[target, "mae"], ".4f")
         ctx.number(f"BacktestNaiveMae{key}", sn.loc[target, "mae"], ".4f")
         ctx.number(f"BacktestMeanMae{key}", m28.loc[target, "mae"], ".4f")
-        ctx.number(f"BacktestCalendarMape{key}", 100 * cal.loc[target, "mape_raw"], ".2f")
-        ctx.number(f"BacktestNaiveMape{key}", 100 * sn.loc[target, "mape_raw"], ".2f")
         ctx.number(f"BacktestCalendarCoverage{key}", 100 * cal.loc[target, "coverage80"], ".2f")
+        ctx.number(f"BacktestNaiveCoverage{key}", 100 * sn.loc[target, "coverage80"], ".2f")
+        ctx.number(f"BacktestMeanCoverage{key}", 100 * m28.loc[target, "coverage80"], ".2f")
         ctx.number(f"BacktestCalendarPinball{key}", cal.loc[target, "pinball10"] + cal.loc[target, "pinball90"], ".4f")
         ctx.number(f"BacktestNaivePinball{key}", sn.loc[target, "pinball10"] + sn.loc[target, "pinball90"], ".4f")
     tot = per_unit[
@@ -931,6 +962,8 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
     ].sum()
     ctx.number("QfourBudget", tot["budget"], ",.2f")
     ctx.number("QfourBudgetAnnualAlt", float(budgets["budget_annual_avg"].sum()), ",.2f")
+    ctx.number("QfourRegsExpectedSamePeriod", alt_expected["same_period"], ".1f")
+    ctx.number("QfourRegsExpectedAnnualAlt", alt_expected["annual_avg"], ".1f")
     ctx.number("QfourUnits", len(per_unit))
     ctx.number("QfourSkippedUnits", int(len(units) - len(per_unit)))
     ctx.number("QfourRows", len(plan))
