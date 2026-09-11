@@ -9,6 +9,11 @@
 - 建模决策记录 MDR-0001…0009；`docs/DATA_NOTES.md`；`docs/RESULTS.md`。
 - 单元/性质测试：日历与解析、分类规则与校验器、分配求解器（网格穷举、SLSQP 子集枚举、性质测试）、预测与模拟。
 
+### Verified
+- run `20260912-041501-ae773aa`（Modal，medium 档）：ingest、validate、eda、classify、allocate、forecast、results、figures、tables、lint、test、paper、qa 全部 completed；44 项测试通过；qa 中 result2/3/4.xlsx 契约检查通过（`--param require_results=true`），论文用骨架编译。
+- Q3：107 个单元-日分配问题全部通过独立审计，凸松弛总体最优性界 0.080%；Q4：75 个分配问题全部通过审计。
+- 身份信息观察名单复核：qa 报告 5 处命中全部位于附录代码清单第 19 页对 `configs/default.toml` 中 `identity_watchlist` 定义本身的转录（"大学、学院、赛区、队号、指导教师" 字面量），不含任何真实身份信息；论文骨架、结果文件与支撑材料均不含姓名、学校、赛区、队号、邮箱。
+
 ### Changed
 - `pyproject.toml`：`[tool.ruff.lint.pycodestyle] max-line-length = 150`——E501 按显示宽度计数（中文字符计 2），论文用中文字符串需要余量；格式化宽度仍为 120。
 - `configs/default.toml`：`paper.sources = ["figures", "tables"]`，`package.stages` 加入四个科学阶段；新增 `[classify]`、`[allocate]`、`[forecast]` 参数节。
