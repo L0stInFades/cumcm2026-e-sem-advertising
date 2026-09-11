@@ -1,0 +1,17 @@
+{
+  "letter": "E",
+  "package": "e",
+  "slug": "sem-advertising",
+  "title": "SEM 广告投放策略",
+  "app": "cumcm2026-e-sem-advertising",
+  "volume": "cumcm2026-e-artifacts",
+  "problem_pdf": "E题.pdf",
+  "attachments_dir": "附件",
+  "templates_dir": "附件/附件2",
+  "result_files": [
+    "result2.xlsx",
+    "result3.xlsx",
+    "result4.xlsx"
+  ],
+  "github_repo": "cumcm2026-e-sem-advertising"
+}
