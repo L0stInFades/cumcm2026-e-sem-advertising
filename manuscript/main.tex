@@ -32,6 +32,19 @@
   subsubsection={format=\normalsize\bfseries\sffamily},
 }
 \captionsetup{font=small,labelfont=bf,labelsep=quad,skip=6pt}
+% Float-only pages: pack the floats at the top so the slack falls at the bottom
+% instead of opening large gaps between a table and the figure below it.
+\makeatletter
+\setlength{\@fptop}{0pt}
+\setlength{\@fpsep}{14pt}
+\setlength{\@fpbot}{0pt plus 1fil}
+\makeatother
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.6}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.7}
+\setlength{\textfloatsep}{14pt plus 3pt minus 3pt}
+\setlength{\intextsep}{12pt plus 3pt minus 3pt}
 \sisetup{detect-all,per-mode=symbol,range-phrase={--},range-units=single}
 \linespread{1.25}
 \setlength{\parskip}{0.15em}
@@ -99,6 +112,7 @@
 
 \begingroup
 \linespread{1.1}\small
+\makeatletter\@ifundefined{bibsep}{}{\setlength{\bibsep}{0.5ex plus 0.2ex}}\makeatother
 \IfFileExists{gbt7714.sty}{\bibliographystyle{gbt7714-numerical}}{\bibliographystyle{unsrt}}
 \bibliography{references}
 \endgroup

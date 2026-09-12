@@ -1056,11 +1056,9 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
     ctx.number("QfourCpcMean", tot["spent"] / tot["clicks_mean"], ".4f")
     ctx.number("QfourCpcLow", tot["spent"] / tot["clicks_q90"], ".4f")
     ctx.number("QfourCpcHigh", tot["spent"] / tot["clicks_q10"], ".4f")
-    ctx.number(
-        "QfourPositionMean",
-        float(np.average(days["position_mean"], weights=np.maximum(days["clicks_mean"], 1e-9))),
-        ".4f",
-    )
+    pos_w = np.maximum(days["clicks_mean"], 1e-9)
+    for key, col in (("Mean", "position_mean"), ("Low", "position_q10"), ("High", "position_q90")):
+        ctx.number(f"QfourPosition{key}", float(np.average(days[col], weights=pos_w)), ".4f")
     ctx.number("QfourScenarios", n_scen)
     ctx.number("QfourAuditGroups", len(audits))
     ref_clicks = float(ud[(ud["日期"] >= Q4_REFERENCE[0]) & (ud["日期"] <= Q4_REFERENCE[1])]["点击量"].sum())

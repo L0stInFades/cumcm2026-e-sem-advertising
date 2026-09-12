@@ -78,16 +78,16 @@
 
 **方法一句话**：单元级日历回归预测效率乘子、CPC、CTR、展位占比（滚动回测对照季节朴素与 28 日均值），预算 = 2025 同期各单元消费；两层分配（跨日 + 日内）后用 500 个蒙特卡罗情景给出竞价、展现量、展位、点击、浏览、注册的期望与 10%–90% 范围（MDR-0008）。
 
-**关键数值（键名）**：`QfourBudget`, `QfourBudgetAnnualAlt`, `QfourUnits`, `QfourSkippedUnits`, `QfourRows`, `QfourSelectedKeywords`, `Qfour{Clicks,Imp,Views,Regs}{Mean,Low,High}`, `QfourCpc{Mean,Low,High}`, `QfourPositionMean`, `QfourScenarios`, `QfourAuditGroups`, `QfourRefClicks`, `QfourClickGainVsRefPct`, `Backtest{Calendar,Naive,Mean}Mae{Eff,Cpc,Ctr,Top,Clicks}`, `Backtest{Calendar,Naive}Mape{..}`, `BacktestCalendarCoverage{..}`, `Backtest{Calendar,Naive}Pinball{..}`.
+**关键数值（键名）**：`QfourBudget`, `QfourBudgetAnnualAlt`, `QfourUnits`, `QfourSkippedUnits`, `QfourRows`, `QfourSelectedKeywords`, `Qfour{Clicks,Imp,Views,Regs}{Mean,Low,High}`, `QfourCpc{Mean,Low,High}`, `QfourPosition{Mean,Low,High}`, `QfourScenarios`, `QfourAuditGroups`, `QfourRefClicks`, `QfourClickGainVsRefPct`, `Backtest{Calendar,Naive,Mean}Mae{Eff,Cpc,Ctr,Top,Clicks}`, `Backtest{Calendar,Naive}Mape{..}`, `BacktestCalendarCoverage{..}`, `Backtest{Calendar,Naive}Pinball{..}`.
 
-**表**：`tab_backtest`（目标 × 模型的 MAE/RMSE/MAPE/pinball/覆盖率）、`tab_q4_daily`（逐日投入、CPC 范围、展现范围、展位、点击范围、浏览、注册范围）、`tab_q4_units`（各单元预算、弹性、候选词、点击与注册范围）。
+**表**：`tab_backtest`（目标 × 模型的 MAE/RMSE/MAPE/pinball/覆盖率）、`tab_q4_ranges`（题目要求的六个量——竞价/CPC、展现量、展现位、点击量、浏览量、注册量——的 7 日期望与 10%–90% 范围，以及单关键词–日的中位期望与中位范围）、`tab_q4_daily`（逐日投入、CPC、展现量、展位、点击量、浏览量、注册量的期望与范围）、`tab_q4_units`（各单元预算、弹性、候选词、点击与注册范围）。
 
 **图与建议图注**：
 - `fig_backtest`：滚动回测（2025-10-09 起每周一个起点，7 天步长）各目标的 MAE 与 80% 区间覆盖率，日历回归 vs 季节朴素 vs 28 日均值。
 - `fig_q4_plan`：2026-09-11 至 17 逐日预期点击量、注册量与 CPC（点为期望，带为 10%–90% 分位）。
 - `fig_q4_units`：各单元 7 天预期注册量及 10%–90% 范围（对数轴）。
 
-**验证结论**：跨日与日内分配问题全部通过独立审计；回测指标见 `tab_backtest`。
+**验证结论**：跨日与日内分配问题全部通过独立审计；回测指标见 `tab_backtest`。合计量的区间按共单调（分位数相加）聚合，是偏宽的保守一侧；CPC 与展位不可加，用点击量加权平均各单元–日的分位数（MDR-0011）。
 
 **局限**：预测点在样本末 8.5 个月之后，只能依赖日历结构（周几、9 月效应），区间反映 2025 年的残差与月份间波动；2026 年的市场趋势无法从数据识别。
 

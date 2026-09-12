@@ -464,6 +464,8 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
             imp_lo=("imp_q10", "sum"),
             imp_hi=("imp_q90", "sum"),
             views=("views_mean", "sum"),
+            views_lo=("views_q10", "sum"),
+            views_hi=("views_q90", "sum"),
             regs=("regs_mean", "sum"),
             regs_lo=("regs_q10", "sum"),
             regs_hi=("regs_q90", "sum"),
@@ -471,14 +473,19 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
         .reset_index()
     )
     d["cpc"] = d["spend"] / d["clicks"]
-    d["cpc_range"] = [f"[{s / hi:.2f}, {s / lo:.2f}]" for s, lo, hi in zip(d["spend"], d["clicks_lo"], d["clicks_hi"])]
+    d["cpc_range"] = [f"[{s / hi:.2f}, {s / lo:.2f}]" for s, hi, lo in zip(d["spend"], d["clicks_hi"], d["clicks_lo"])]
     d["clicks_range"] = [f"[{lo:,.0f}, {hi:,.0f}]" for lo, hi in zip(d["clicks_lo"], d["clicks_hi"])]
-    d["imp_range"] = [f"[{lo:,.0f}, {hi:,.0f}]" for lo, hi in zip(d["imp_lo"], d["imp_hi"])]
+    d["imp_k"] = d["imp"] / 1e3
+    d["views_k"] = d["views"] / 1e3
+    d["imp_range"] = [f"[{lo / 1e3:,.1f}, {hi / 1e3:,.1f}]" for lo, hi in zip(d["imp_lo"], d["imp_hi"])]
+    d["views_range"] = [f"[{lo / 1e3:,.1f}, {hi / 1e3:,.1f}]" for lo, hi in zip(d["views_lo"], d["views_hi"])]
     d["regs_range"] = [f"[{lo:.0f}, {hi:.0f}]" for lo, hi in zip(d["regs_lo"], d["regs_hi"])]
-    d["position"] = [
-        float(np.average(g["position_mean"], weights=np.maximum(g["clicks_mean"], 1e-9)))
-        for _, g in days.groupby("date")
-    ]
+
+    def _pos(col: str) -> list[float]:
+        return [float(np.average(g[col], weights=np.maximum(g["clicks_mean"], 1e-9))) for _, g in days.groupby("date")]
+
+    d["position"] = _pos("position_mean")
+    d["position_range"] = [f"[{lo:.2f}, {hi:.2f}]" for lo, hi in zip(_pos("position_q10"), _pos("position_q90"))]
     write_table(
         ctx,
         "tab_q4_daily",
@@ -489,12 +496,14 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
             ("spend", "投入/元", ",.1f"),
             ("cpc", "CPC/元", ".2f"),
             ("cpc_range", "CPC 范围", "s"),
-            ("imp", "展现量", "d"),
-            ("imp_range", "展现范围", "s"),
+            ("imp_k", "展现量/千次", ",.1f"),
+            ("imp_range", "展现范围/千次", "s"),
             ("position", "展位", ".2f"),
+            ("position_range", "展位范围", "s"),
             ("clicks", "点击量", "d"),
             ("clicks_range", "点击范围", "s"),
-            ("views", "浏览量", "d"),
+            ("views_k", "浏览量/千次", ",.1f"),
+            ("views_range", "浏览范围/千次", "s"),
             ("regs", "注册量", ".0f"),
             ("regs_range", "注册范围", "s"),
         ],
@@ -502,6 +511,71 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
     names.append("tab_q4_daily")
 
     per = pd.DataFrame(json.loads((fc_dir / "plan_by_unit.json").read_text(encoding="utf-8")))
+
+    # Six quantities Problem 4 asks a range for: bid (CPC proxy), impressions, position, clicks, views, regs.
+    # Aggregated exactly as the registered \val macros are: per-unit scenario quantiles summed over units
+    # (comonotone across units, scenario-aligned across the 7 days inside a unit); CPC and the position index
+    # are not additive and are click-weighted instead.
+    plan_kw = pd.read_parquet(fc_dir / "plan.parquet")
+
+    def _unit_tot(k: str) -> tuple[float, float, float]:
+        return tuple(float(per[f"{k}_{q}"].sum()) for q in ("mean", "q10", "q90"))  # type: ignore[return-value]
+
+    clicks_tot = _unit_tot("clicks")
+    spend_tot = float(per["spent"].sum())
+    w_day = np.maximum(days["clicks_mean"], 1e-9)
+    agg = {
+        "cpc": tuple(spend_tot / v for v in (clicks_tot[0], clicks_tot[2], clicks_tot[1])),
+        "imp": _unit_tot("imp"),
+        "position": tuple(
+            float(np.average(days[c], weights=w_day)) for c in ("position_mean", "position_q10", "position_q90")
+        ),
+        "clicks": clicks_tot,
+        "views": _unit_tot("views"),
+        "regs": _unit_tot("regs"),
+    }
+    rng_rows = []
+    for key, name, unit, agg_kind, prec in (
+        ("cpc", "竞价（平均点击成本 CPC）", "元/次", "点击加权", 4),
+        ("imp", "展现量", "次", "合计", 1),
+        ("position", "展现位（排位指数 $\\pi$）", "--", "点击加权", 4),
+        ("clicks", "点击量", "次", "合计", 1),
+        ("views", "浏览量", "次", "合计", 1),
+        ("regs", "注册量", "人", "合计", 1),
+    ):
+        mean, lo, hi = (float(v) for v in agg[key])
+        kw = plan_kw[[f"{key}_mean", f"{key}_q10", f"{key}_q90"]].to_numpy(dtype=float)
+        kw_mid = float(np.median(kw[:, 0]))
+        rng_rows.append(
+            {
+                "quantity": name,
+                "unit": unit,
+                "kind": agg_kind,
+                "mean": f"{mean:,.{prec}f}",
+                "range": f"[{lo:,.{prec}f}, {hi:,.{prec}f}]",
+                "width": 100 * (hi - lo) / max(abs(mean), 1e-9),
+                "kw_mean": f"{kw_mid:,.4g}",
+                "kw_range": f"[{np.median(kw[:, 1]):,.4g}, {np.median(kw[:, 2]):,.4g}]",
+            }
+        )
+    write_table(
+        ctx,
+        "tab_q4_ranges",
+        pd.DataFrame(rng_rows),
+        [
+            ("quantity", "量", "raw"),
+            ("unit", "单位", "s"),
+            ("kind", "聚合", "s"),
+            ("mean", "7 日期望", "s"),
+            ("range", "10\\%--90\\% 范围", "s"),
+            ("width", "相对宽度/\\%", ".0f"),
+            ("kw_mean", "单词--日期望", "s"),
+            ("kw_range", "单词--日范围", "s"),
+        ],
+        align="llllrrrr",
+    )
+    names.append("tab_q4_ranges")
+
     per["unit"] = per["推广单元ID"].astype(str)
     per["regs_range"] = [f"[{lo:.0f}, {hi:.0f}]" for lo, hi in zip(per["regs_q10"], per["regs_q90"])]
     per["clicks_range"] = [f"[{lo:,.0f}, {hi:,.0f}]" for lo, hi in zip(per["clicks_q10"], per["clicks_q90"])]
