@@ -1,0 +1,129 @@
+{
+  "schema": "forge.manifest/1",
+  "run_id": "20260912-041501-ae773aa",
+  "stage": "release",
+  "status": "completed",
+  "started_at": "2026-09-12T13:46:23+00:00",
+  "finished_at": "2026-09-12T13:46:23+00:00",
+  "duration_s": 0.0,
+  "code_ref": {
+    "git_sha": "40f5b6e5167d1986828ea7bf74cd7dab9adc3567",
+    "branch": "main",
+    "dirty": false,
+    "code_digest": "3bd31cda35a7fa679ab2ca6faa54262ec8882b9c64932bdd7d3f3da2a2d381ae",
+    "files": 113
+  },
+  "params": {
+    "code_ref": {
+      "git_sha": "40f5b6e5167d1986828ea7bf74cd7dab9adc3567",
+      "branch": "main",
+      "dirty": false
+    },
+    "size": "medium",
+    "submitted_at": "2026-09-12T21:44:45",
+    "stages": [
+      "paper",
+      "qa",
+      "package",
+      "release"
+    ]
+  },
+  "config_digest": "4a3ea3b4aedf5d2437b330e2644ef7cd6e9c77b7d085679c8943341f0732c632",
+  "deps": {
+    "package": "e8b32876c090f6d8b00cc7165bb4f0577ec4a4eb7932621d140bbbebd3469e9a"
+  },
+  "inputs": {
+    "E题.pdf": {
+      "sha256": "3e4e340ae722c5dd92239ea9152802c4e8bd233f8032bdcd017bced55d3f4de7",
+      "bytes": 342795
+    },
+    "附件/附件1.xlsx": {
+      "sha256": "f6ac8e080a96719428f87109c43a1fffb211cbf6e299ef93e381eed30edd69ca",
+      "bytes": 313639
+    },
+    "附件/附件2/result2.xlsx": {
+      "sha256": "e3eff773f353d70611b47c7118d8b01fcc19aa5fd1d5af257f2320ff4e6b607a",
+      "bytes": 9465
+    },
+    "附件/附件2/result3.xlsx": {
+      "sha256": "d7af4794cb38087b2f531a9aa4124a9a0f4d70aa04e1e8a5eec8d5930fa3b334",
+      "bytes": 8775
+    },
+    "附件/附件2/result4.xlsx": {
+      "sha256": "37e8103bd74e2de85a07f5decb822ad61aff84f901537074f4e8255c19245441",
+      "bytes": 8775
+    }
+  },
+  "outputs": {
+    "AI工具使用详情.pdf": {
+      "sha256": "780affe6f0437cf9943e40cc83af8369fe05f03766cfd5a17712622799cd9c1c",
+      "bytes": 80757
+    },
+    "RELEASE_NOTES.md": {
+      "sha256": "3bf08f8a36c35c82a22799e14758438e5690e674ec79cc8607a8ed2c7a5aa561",
+      "bytes": 745
+    },
+    "release_manifest.json": {
+      "sha256": "8c196123144e8a2a4eda07a73c7f42eb1c8b5dc5559eb3d10bb92a7834f95d17",
+      "bytes": 1068
+    },
+    "result2.xlsx": {
+      "sha256": "cd9c92a2bc16ee2dd5ebb146fd95866b0b34be7192ad62f1168d6066b263be3d",
+      "bytes": 65828
+    },
+    "result3.xlsx": {
+      "sha256": "8226985b31d51cfded1020a7db3d1eb6638ff4b028e5708d3abfeab5e23dd5ea",
+      "bytes": 118165
+    },
+    "result4.xlsx": {
+      "sha256": "039c8e05ce6854c96e6584bc78550d0654e195a655b35cef2ab98abec84327cf",
+      "bytes": 47958
+    },
+    "支撑材料.zip": {
+      "sha256": "071ec6d2a455f7559dd092217f67b3c9ba0c0f1c233a6004edc6555862dbde62",
+      "bytes": 5199403
+    },
+    "论文.pdf": {
+      "sha256": "6e4c0987a640a3008a2cd679c782d09a19446ae41f8c6ddf3cc6d371d22c5fc1",
+      "bytes": 1994740
+    }
+  },
+  "outputs_digest": "086cea8ee51ed35b46f857333dc3c32150899369803796f25fd92afad690cba5",
+  "metrics": {
+    "files": 6,
+    "paper_bytes": 1994740
+  },
+  "runtime": {
+    "python": "3.11.12",
+    "platform": "Linux-4.19.0-gvisor-x86_64-with-glibc2.36",
+    "cpu_count": 24,
+    "modal_task_id": "ta-01M2AXT8RFB0KTD5J8AASWGV5R",
+    "modal_is_remote": true,
+    "packages": {
+      "numpy": "2.2.6",
+      "scipy": "1.15.3",
+      "pandas": "2.2.3",
+      "pyarrow": "20.0.0",
+      "openpyxl": "3.1.5",
+      "matplotlib": "3.10.3",
+      "scikit-learn": "1.6.1",
+      "statsmodels": "0.14.4",
+      "ortools": "9.12.4544",
+      "highspy": "1.10.0",
+      "numba": "0.61.2",
+      "cvxpy": "1.6.5",
+      "networkx": "3.4.2",
+      "pymupdf": "1.26.7",
+      "pytest": "8.3.5",
+      "hypothesis": "6.131.9",
+      "ruff": "0.11.10",
+      "mypy": "1.15.0"
+    },
+    "env": {
+      "OMP_NUM_THREADS": "8",
+      "OPENBLAS_NUM_THREADS": "8",
+      "PYTHONHASHSEED": "0"
+    }
+  },
+  "error": null
+}

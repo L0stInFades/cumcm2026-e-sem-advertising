@@ -1,0 +1,13 @@
+# 发布说明 — run 20260912-041501-ae773aa
+
+- 代码：`40f5b6e5167d1986828ea7bf74cd7dab9adc3567`
+- QA：通过
+
+| 文件 | 字节 | SHA-256 |
+|---|---:|---|
+| 论文.pdf | 1994740 | `6e4c0987a640a3008a2cd679c782d09a19446ae41f8c6ddf3cc6d371d22c5fc1` |
+| result2.xlsx | 65828 | `cd9c92a2bc16ee2dd5ebb146fd95866b0b34be7192ad62f1168d6066b263be3d` |
+| result3.xlsx | 118165 | `8226985b31d51cfded1020a7db3d1eb6638ff4b028e5708d3abfeab5e23dd5ea` |
+| result4.xlsx | 47958 | `039c8e05ce6854c96e6584bc78550d0654e195a655b35cef2ab98abec84327cf` |
+| 支撑材料.zip | 5199403 | `071ec6d2a455f7559dd092217f67b3c9ba0c0f1c233a6004edc6555862dbde62` |
+| AI工具使用详情.pdf | 80757 | `780affe6f0437cf9943e40cc83af8369fe05f03766cfd5a17712622799cd9c1c` |
