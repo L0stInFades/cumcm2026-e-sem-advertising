@@ -20,7 +20,7 @@
 
 **关键数值（键名）**：`TotalSpend`, `TotalClicks`, `TotalImpressions`, `TotalRegs`, `OverallCtrPct`, `OverallCpc`, `TopSharePct`, `FirstSharePct`, `TopClickSharePct`, `TopSpendSharePct`, `TopCpc`, `OtherCpc`, `BiggestUnitId`, `BiggestUnitSpendSharePct`, `ActiveKeywords`, `ZeroKeywords`, `UniqueKeywordIds`, `SharedKeywordIds`, `GiniSpendActive`, `TopTenSpendSharePct`, `TopHundredSpendSharePct`, `Holiday{Reg,Spend,Clicks,Imp}EffectPct/CiLow/CiHigh/P`, `HolidayRegGivenSpendEffectPct/CiLow/CiHigh/P`, `RegSpendElasticity(Se)`, `{Monday,Saturday,Sunday,AdjustedWorkday,PreHoliday,PostHoliday}RegEffectPct/RegP`, `MondayRegGivenSpendEffectPct`, `SundayRegGivenSpendEffectPct`, `HolidayCpcEffect/P`, `MondayCpcEffect/P`, `RegCalendarRsq`, `RegWeekdayWaldP`, `HolidayRegMedianRatio`, `HolidayRegMannWhitneyP`, `AttributionLambda`, `AttributionRsq`, `AttributionHoldoutRsq`, `AttributionHoldoutMape`, `BaselineRegsPerDay`, `PooledRegRatePerHundredClicks`, `AttributedRegs`, `CostPerAttributedReg`, `UnitsWithOwnRate`, `PooledGamma`, `PooledGammaSe`, `MinUnitGamma`, `MaxUnitGamma`, `UnitsWithOwnGamma`.
 
-**表**：`tab_unit_kpis`（各单元年度 KPI）、`tab_calendar_effects`（日历/假日效应，注册、消费、点击）、`tab_attribution_response`（各单元注册率、归因注册、注册成本、弹性 γ）。
+**表**：`tab_unit_kpis`（各单元年度 KPI）、`tab_calendar_effects`（日历/假日效应，注册、消费、点击）、`tab_attribution_response`（各单元注册率与来源、归因注册（按实际采用的注册率，MDR-0010）、注册成本、单元估计 $\hat\gamma_u$ 及其 SE、$R^2$、采用的 $\gamma_u$ 与来源）。
 
 **图与建议图注**：
 - `fig_daily_series`：2025 年日消费额、日点击量与日新注册数（细线为日值，粗线为 7 日滑动均值；阴影为法定节假日，虚线为调休上班日）。
@@ -64,7 +64,7 @@
 
 **图与建议图注**：
 - `fig_q3_gain`：两个窗口逐日预期注册量（最优分配 vs 按历史比例 vs 均匀分配）与弹性自助抽样得到的提升分布。
-- `fig_allocation_mix`：各类关键词的消费占比：2025 年实际 vs 最优分配。
+- `fig_allocation_shift`（替换原 `fig_allocation_mix`，MDR-0010）：8 月窗口每个入选关键词的最优窗口日均投放 vs 2025 年日均消费（双对数，按类别着色，附 45° 线与上限倍数线）；右图为各类候选词数与至少入选一天的词数。位于上限线之上的一簇点是历史日均消费低于 $m/\mu$ 的长尾词（上限即最小投放额），其预算与注册份额见 `QthreeFloorSpendSharePctAug`、`QthreeFloorRegsSharePctAug`。
 
 **验证结论**：全部单元-日问题通过独立审计（可行性、KKT、配对转移/剔除/插入不可改进、凸松弛上界）；`QthreeAggregateGapPct` 为总体最优性界。响应模型校准 MAPE 见 `QthreeCalibrationMape`。
 
