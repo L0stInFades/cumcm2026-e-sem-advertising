@@ -1014,7 +1014,9 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
     ctx.number("QfourRegsExpectedSamePeriod", alt_expected["same_period"], ".1f")
     ctx.number("QfourRegsExpectedAnnualAlt", alt_expected["annual_avg"], ".1f")
     ctx.number(
-        "QfourRegsGainAnnualAltPct", 100 * (alt_expected["annual_avg"] / max(alt_expected["same_period"], 1e-9) - 1), ".1f"
+        "QfourRegsGainAnnualAltPct",
+        100 * (alt_expected["annual_avg"] / max(alt_expected["same_period"], 1e-9) - 1),
+        ".1f",
     )
     biggest = per_unit.sort_values("budget", ascending=False).iloc[0]
     ctx.number("QfourBiggestUnitId", int(biggest["推广单元ID"]))
