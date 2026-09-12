@@ -2,7 +2,7 @@
 下列假设中，A1--A2 来自题目与附件的给定信息，A3--A8 为本文附加；每条给出依据与被违反时的后果。
 
 \begin{assumption}[数据口径]\label{as:data}
-附件 1 的记录完整地代表了 2025 年的投放：Sheet3 各单元的消费与点击合计与 Sheet1 完全对账（见第~\ref{sec:q1data} 节）；题述"6000 多个关键词"指账户内的全部关键词，附件仅提供其中有统计记录的 \valKeywordRows{} 条，分析以附件为准。
+附件 1 的记录完整地代表了 2025 年的投放：Sheet3 各单元的消费与点击合计与 Sheet1 完全对账（见第~\ref{sec:q1data} 节）；题述“6000 多个关键词”指账户内的全部关键词，附件仅提供其中有统计记录的 \valKeywordRows{} 条，分析以附件为准。
 \end{assumption}
 
 \begin{assumption}[节假日日历]\label{as:calendar}
@@ -14,7 +14,7 @@
 \end{assumption}
 
 \begin{assumption}[幂函数响应与单元共享弹性]\label{as:resp}
-关键词 $i$ 在单日投放 $x$ 下的期望点击为 $q_i(x)=c_i(x/s_i)^{\gamma_u}$，其中 $(s_i,c_i)$ 为其 2025 年活跃日的日均消费与日均点击，形状参数 $\gamma_u\in(0,1)$ 由所属单元的日序列估计并在单元内共享。依据：单元级回归的 $\hat\gamma_u\in[\valMinUnitGamma,\valMaxUnitGamma]$ 显著小于 1，幂函数在 11/12 个单元上优于指数饱和函数（MDR-0005）；曲线过历史工作点保证"按历史比例分配"恰好复现历史点击。若违反（关键词弹性异质），最优解的具体投放额有偏，但凹性保证的分散化结论不变。
+关键词 $i$ 在单日投放 $x$ 下的期望点击为 $q_i(x)=c_i(x/s_i)^{\gamma_u}$，其中 $(s_i,c_i)$ 为其 2025 年活跃日的日均消费与日均点击，形状参数 $\gamma_u\in(0,1)$ 由所属单元的日序列估计并在单元内共享。依据：单元级回归的 $\hat\gamma_u\in[\valMinUnitGamma,\valMaxUnitGamma]$ 显著小于 1，幂函数在 11/12 个单元上优于指数饱和函数（MDR-0005）；曲线过历史工作点保证“按历史比例分配”恰好复现历史点击。若违反（关键词弹性异质），最优解的具体投放额有偏，但凹性保证的分散化结论不变。
 \end{assumption}
 
 \begin{assumption}[点击价值与浏览量]\label{as:value}
@@ -26,7 +26,7 @@
 \end{assumption}
 
 \begin{assumption}[预算与投放上限]\label{as:budget}
-问题三中单元 $u$ 在日期 $t$ 的预算 $B_{u,t}$ 等于其 2025 年当日实际消费；问题四中单元 $u$ 的 7 日预算等于其 2025 年 9 月 11--17 日的实际消费之和。单个关键词单日投放不超过其历史日均消费的 $\mu=\valQthreeCapMultiplier$ 倍（问题词减半），且不低于其历史比例份额；低于 $m=\valQthreeMinSpend$ 元的投放视为不投放。依据：题目未给预算，与实际消费相同的预算使"最优 vs 实际"可比；上限反映单个关键词的流量天花板（年度日消费 95\% 分位约为均值的 2--4 倍），下限保证入选词有实际意义。上限倍数、预算与最小投放额的影响在灵敏度分析中给出。
+问题三中单元 $u$ 在日期 $t$ 的预算 $B_{u,t}$ 等于其 2025 年当日实际消费；问题四中单元 $u$ 的 7 日预算等于其 2025 年 9 月 11--17 日的实际消费之和。单个关键词单日投放不超过其历史日均消费的 $\mu=\valQthreeCapMultiplier$ 倍（问题词减半），且不低于其历史比例份额；低于 $m=\valQthreeMinSpend$ 元的投放视为不投放。依据：题目未给预算，与实际消费相同的预算使“最优 vs 实际”可比；上限反映单个关键词的流量天花板（年度日消费 95\% 分位约为均值的 2--4 倍），下限保证入选词有实际意义。上限倍数、预算与最小投放额的影响在灵敏度分析中给出。
 \end{assumption}
 
 \begin{assumption}[2026 年的结构稳定性]\label{as:stable}
@@ -34,6 +34,7 @@
 \end{assumption}
 
 \subsection{符号说明}
+\small
 \begin{longtable}{@{}p{0.2\linewidth}p{0.62\linewidth}p{0.12\linewidth}@{}}
 \toprule 符号 & 含义 & 单位 \\ \midrule \endhead \bottomrule \endfoot
 $u\in\mathcal U$，$t$，$i\in\mathcal K_u$ & 推广单元、日期、单元 $u$ 内的关键词 & -- \\

@@ -17,6 +17,8 @@
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc}
 \usepackage{listings}
 \usepackage{xurl}
+% GB/T 7714 numeric citations ([1], [2,3]) via natbib when the package is available; falls back to plain \cite.
+\IfFileExists{gbt7714.sty}{\usepackage[numerical]{gbt7714}}{}
 \usepackage[colorlinks=true,linkcolor=ink,citecolor=ink,urlcolor=ink,pdfauthor={},pdftitle={SEM 广告投放策略}]{hyperref}
 
 \setCJKmainfont{Noto Serif CJK SC}[BoldFont={Noto Serif CJK SC Bold}]
@@ -56,8 +58,8 @@
 \newsavebox{\forgetablebox}
 \newcommand{\fitwidth}[1]{\sbox{\forgetablebox}{#1}%
   \ifdim\wd\forgetablebox>\linewidth\resizebox{\linewidth}{!}{\usebox{\forgetablebox}}\else\usebox{\forgetablebox}\fi}
-\newcommand{\papertable}[3]{\begin{table}[htbp]\centering\caption{#2}\label{#3}\small\setlength{\tabcolsep}{4pt}%
-  \fitwidth{\input{generated/tables/#1}}\end{table}}
+\newcommand{\papertable}[3]{\begin{table}[htbp]\centering\caption{#2}\label{#3}\footnotesize\setlength{\tabcolsep}{3pt}%
+  \renewcommand{\arraystretch}{1.05}\fitwidth{\input{generated/tables/#1}}\end{table}}
 \SetKwInput{KwIn}{输入}\SetKwInput{KwOut}{输出}
 \newcommand{\dd}{\mathrm{d}}
 \newcommand{\pdv}[2]{\frac{\partial #1}{\partial #2}}

@@ -1,13 +1,13 @@
 \section{问题二：关键词的成本--效益分类}
 \label{sec:q2}
-本节把题目的五类落实为"成本尺度 $\times$ 效益指数"平面上的象限划分：先定义成本与复合效益指数，再用数据驱动的阈值划分并检验阈值的稳健性，最后由独立校验器复核每个标签。
+本节把题目的五类落实为“成本尺度 $\times$ 效益指数”平面上的象限划分：先定义成本与复合效益指数，再用数据驱动的阈值划分并检验阈值的稳健性，最后由独立校验器复核每个标签。
 
 \subsection{成本与效益的度量}
 关键词的年度消费 $S_i$ 跨越六个数量级，成本取对数尺度 $x^{c}_i=\log_{10}S_i$（仅对 $S_i>0$ 的词定义）。效益综合四个维度（表~\ref{tab:benefit-comp}）：点击量、浏览量、注意力时长与归因注册，
 \begin{equation}\label{eq:benefit-comp}
 z_{i1}=\log(1+C_i),\quad z_{i2}=\log(1+V_i),\quad z_{i3}=\log\bigl(1+C_i(1-b_i)\tau_i\bigr),\quad z_{i4}=\log\bigl(1+r_{u(i)}C_i\bigr),
 \end{equation}
-其中 $C_i(1-b_i)\tau_i$ 是未跳出访问产生的总停留时间（人$\cdot$秒），$r_{u(i)}$ 为所属单元的注册率（第~\ref{sec:q1attr} 节）；无访问记录（"/"）的词取 $b_i=1$、$\tau_i=0$。对每个分量做极差标准化 $\tilde z_{ij}=(z_{ij}-\min_k z_{kj})/(\max_k z_{kj}-\min_k z_{kj})\in[0,1]$，权重由熵权法\cite{shannon1948}确定：
+其中 $C_i(1-b_i)\tau_i$ 是未跳出访问产生的总停留时间（人$\cdot$秒），$r_{u(i)}$ 为所属单元的注册率（第~\ref{sec:q1attr} 节）；无访问记录（“/”）的词取 $b_i=1$、$\tau_i=0$。对每个分量做极差标准化 $\tilde z_{ij}=(z_{ij}-\min_k z_{kj})/(\max_k z_{kj}-\min_k z_{kj})\in[0,1]$，权重由熵权法\cite{shannon1948}确定：
 \begin{equation}\label{eq:entropy}
 p_{ij}=\frac{\tilde z_{ij}}{\sum_k\tilde z_{kj}},\qquad
 e_j=-\frac{1}{\ln n}\sum_{i}p_{ij}\ln p_{ij},\qquad
@@ -31,7 +31,7 @@ B_i=\sum_{j=1}^{4}w_j\tilde z_{ij}\in[0,1].
 \end{table}
 
 \subsection{阈值与分类规则}
-"高/低"的界限在有消费的词上由数据决定。主方法为两类 Fisher--Jenks 自然断点\cite{fisher1958,jenks1967}：对排序后的样本 $v_{(1)}\le\dots\le v_{(n)}$ 求
+“高/低”的界限在有消费的词上由数据决定。主方法为两类 Fisher--Jenks 自然断点\cite{fisher1958,jenks1967}：对排序后的样本 $v_{(1)}\le\dots\le v_{(n)}$ 求
 \begin{equation}\label{eq:jenks}
 k^{*}=\arg\min_{1\le k<n}\Bigl[\sum_{i\le k}\bigl(v_{(i)}-\bar v_{\le k}\bigr)^2+\sum_{i>k}\bigl(v_{(i)}-\bar v_{>k}\bigr)^2\Bigr],\qquad
 \text{阈值}=\tfrac12\bigl(v_{(k^{*})}+v_{(k^{*}+1)}\bigr),
@@ -46,18 +46,18 @@ k^{*}=\arg\min_{1\le k<n}\Bigl[\sum_{i\le k}\bigl(v_{(i)}-\bar v_{\le k}\bigr)^2
 \text{问题词}, & x^{c}_i>\tau_c,\ B_i<\tau_b,
 \end{cases}
 \end{equation}
-无效词按"零消费且零点击"判定（MDR-0001）：未购买任何点击的词不可能通过广告产生效益，两条零消费、零点击但浏览量为 1 的记录视为统计噪声。主方法阈值为成本 \valCostThresholdYuan{} 元/年（$\log_{10}$ 尺度 \valCostThresholdLog）、效益指数 \valBenefitThreshold；中位数法与高斯混合法的成本阈值分别为 \valMedianCostThresholdYuan{} 元与 \valGmmCostThresholdYuan{} 元（图~\ref{fig:thresholds}）。
+无效词按“零消费且零点击”判定（MDR-0001）：未购买任何点击的词不可能通过广告产生效益，两条零消费、零点击但浏览量为 1 的记录视为统计噪声。主方法阈值为成本 \valCostThresholdYuan{} 元/年（$\log_{10}$ 尺度 \valCostThresholdLog）、效益指数 \valBenefitThreshold；中位数法与高斯混合法的成本阈值分别为 \valMedianCostThresholdYuan{} 元与 \valGmmCostThresholdYuan{} 元（图~\ref{fig:thresholds}）。
 
 \subsection{分类结果与稳健性}
 分类结果为：黄金词 \valGoldCount、重点词 \valKeyCount、潜力词 \valPotentialCount、问题词 \valProblemCount、无效词 \valInvalidCount（表~\ref{tab:class-summary}，图~\ref{fig:cost-benefit}；各单元的类别分布见附录表~\ref{tab:class-per-unit}）。\valKeyCount{} 个重点词承担了 \valKeySpendSharePct\% 的消费，CPC \valKeyCpc{} 元，是账户的流量与注册主体；\valGoldCount{} 个黄金词的 CPC 仅 \valGoldCpc{} 元，以极低成本取得高于阈值的效益，是加大出价与预算的首选；\valProblemCount{} 个问题词 CPC 高达 \valProblemCpc{} 元而效益低于阈值，应降低出价、收紧匹配或暂停；\valPotentialCount{} 个潜力词消费与效益都低（CPC \valPotentialCpc{} 元），适合小预算测试以发现新的黄金词；\valInvalidCount{} 个无效词占词库四成，应清理或改用更宽的匹配方式。
 
 \papertable{tab_class_summary}{五类关键词的数量、消费、点击、CPC、平均效益指数与归因注册}{tab:class-summary}
 
-\paperfigure[0.8\linewidth]{fig_cost_benefit.pdf}{关键词的成本--效益散点：横轴为年度消费额（对数轴），纵轴为综合效益指数~\eqref{eq:index}，虚线为自然断点阈值，颜色为类别（无效词零消费未画出）。}{fig:cost-benefit}
+\paperfigure[0.66\linewidth]{fig_cost_benefit.pdf}{关键词的成本--效益散点：横轴为年度消费额（对数轴），纵轴为综合效益指数~\eqref{eq:index}，虚线为自然断点阈值，颜色为类别（无效词零消费未画出）。}{fig:cost-benefit}
 
-\paperfigure[0.9\linewidth]{fig_class_thresholds.pdf}{$\log_{10}$ 年度消费额（左）与综合效益指数（右）的直方图及三种阈值方法的位置。}{fig:thresholds}
+\paperfigure[0.8\linewidth]{fig_class_thresholds.pdf}{$\log_{10}$ 年度消费额（左）与综合效益指数（右）的直方图及三种阈值方法的位置。}{fig:thresholds}
 
-阈值方法的稳健性见表~\ref{tab:class-robust}：主方法与中位数法的标签一致率为 \valAgreementJenksMedianPct\%（中位数把阈值压到 \valMedianCostThresholdYuan{} 元，使大量长尾词进入"高成本"），与高斯混合法为 \valAgreementGmmJenksPct\%，与等权效益指数为 \valAgreementJenksEqualWeightsPct\%。无效词在所有方法下都是 \valInvalidCount{} 个，重点词、问题词的成员在三种方法下高度重合，差异集中在阈值附近的潜力词与黄金词之间。
+阈值方法的稳健性见表~\ref{tab:class-robust}：主方法与中位数法的标签一致率为 \valAgreementJenksMedianPct\%（中位数把阈值压到 \valMedianCostThresholdYuan{} 元，使大量长尾词进入“高成本”），与高斯混合法为 \valAgreementGmmJenksPct\%，与等权效益指数为 \valAgreementJenksEqualWeightsPct\%。无效词在所有方法下都是 \valInvalidCount{} 个，重点词、问题词的成员在三种方法下高度重合，差异集中在阈值附近的潜力词与黄金词之间。
 
 \papertable{tab_class_robustness}{不同阈值方法与权重下的类别数量（成本阈值为原尺度）}{tab:class-robust}
 

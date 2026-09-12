@@ -1,6 +1,6 @@
 \section{问题三：关键词选择与投放模型}
 \label{sec:q3}
-本节在问题一的结构参数（$r_u$、$\gamma_u$）与问题二的类别之上，为每个推广单元建立"投入 $\to$ 点击 $\to$ 浏览、注册"的响应模型，把每个单元--日的关键词选择与投放额写成带最小投放额的可分离凹规划，给出精确算法与最优性证书，并用同预算的反事实对照说明策略的优越性。
+本节在问题一的结构参数（$r_u$、$\gamma_u$）与问题二的类别之上，为每个推广单元建立“投入 $\to$ 点击 $\to$ 浏览、注册”的响应模型，把每个单元--日的关键词选择与投放额写成带最小投放额的可分离凹规划，给出精确算法与最优性证书，并用同预算的反事实对照说明策略的优越性。
 
 \subsection{关键词响应函数、点击价值与展位模型}
 \label{sec:q3resp}
@@ -17,15 +17,17 @@ q_i(x)=c_i\Bigl(\frac{x}{s_i}\Bigr)^{\gamma_u},\qquad
 
 展位由单元日序列上的加权 logit 回归刻画（按展现量加权，斜率限制为非负，不显著或为负时退化为常数）：
 \begin{equation}\label{eq:position}
+\begin{gathered}
 \operatorname{logit}p^{\mathrm{top}}_{u}=a_u+b_u\log\mathrm{CPC},\qquad
-\operatorname{logit}p^{1}_{u}=a'_u+b'_u\log\mathrm{CPC},\qquad
+\operatorname{logit}p^{1}_{u}=a'_u+b'_u\log\mathrm{CPC},\\
 \pi=1\cdot p^{1}+2.5\,(p^{\mathrm{top}}-p^{1})+4\,(1-p^{\mathrm{top}}),
+\end{gathered}
 \end{equation}
 关键词在投放 $x$ 下的 CPC 由式~\eqref{eq:response} 代入得到其上方位、首位占比与预期展位指数 $\pi$（首位记 1，上方位其余记 2.5，上方位之外记 4；数值越小越靠前，MDR-0007）。
 
 \subsection{单元--日分配模型}
 \label{sec:q3model}
-记 $\mathcal K^{e}_u$ 为单元 $u$ 的候选词集合：黄金词、重点词、潜力词与问题词参与，无效词不参与；问题词的投放上限减半（$\phi_i=0.5$，其余 $\phi_i=1$）。关键词的"关联关系"体现为：同一单元的词共享弹性 $\gamma_u$ 与注册率 $r_u$、共用该单元的预算，类型决定上限；同一 ID 在多个单元重复投放时各份独立参与（数据无法识别跨单元的相互蚕食，重复投放作为问题一的发现提示合并）。单元 $u$ 在日期 $t$ 的模型为
+记 $\mathcal K^{e}_u$ 为单元 $u$ 的候选词集合：黄金词、重点词、潜力词与问题词参与，无效词不参与；问题词的投放上限减半（$\phi_i=0.5$，其余 $\phi_i=1$）。关键词的“关联关系”体现为：同一单元的词共享弹性 $\gamma_u$ 与注册率 $r_u$、共用该单元的预算，类型决定上限；同一 ID 在多个单元重复投放时各份独立参与（数据无法识别跨单元的相互蚕食，重复投放作为问题一的发现提示合并）。单元 $u$ 在日期 $t$ 的模型为
 \begin{equation}\label{eq:alloc}
 (\mathrm P_{u,t}):\quad
 \max_{x}\ \sum_{i\in\mathcal K^{e}_u}\hat\varepsilon_{u,t}\,\rho_i\,c_i\Bigl(\frac{x_i}{s_i}\Bigr)^{\gamma_u}
@@ -34,7 +36,7 @@ q_i(x)=c_i\Bigl(\frac{x}{s_i}\Bigr)^{\gamma_u},\qquad
 \begin{equation}\label{eq:caps}
 \bar x_i=\max\Bigl\{\mu\,\phi_i\,s_i,\ \frac{B_{u,t}\,s_i}{\sum_{j\in\mathcal K^{e}_u}s_j},\ m\Bigr\},\qquad \mu=\valQthreeCapMultiplier,\quad m=\valQthreeMinSpend\ \text{元},
 \end{equation}
-其中 $B_{u,t}$ 为该单元当日的 2025 年实际消费（假设~\ref{as:budget}），目标是当日预期注册量（点击、浏览随之由式~\eqref{eq:response}、\eqref{eq:value} 给出）。关键词预算分配在文献中通常写成以凹响应为目标的背包型或凸规划问题\cite{feldman2007,zhang2012}，式~\eqref{eq:alloc} 属于这一类，其特点是用最小投放额显式地把"选词"与"定额"合并在一个问题中。上限不低于历史比例份额保证"按历史比例分配"总是可行，从而最优值不低于历史做法；若 $\sum_i\bar x_i<1.2B_{u,t}$ 则等比例放大上限以保证预算可用完。最小投放额 $m$ 是关键词选择机制：投放低于 $m$ 的词视为不投放，避免"每个词分几分钱"的无意义解。写 $a_i=\hat\varepsilon_{u,t}\rho_i c_i s_i^{-\gamma_u}$，目标即 $\sum_i a_i x_i^{\gamma_u}$。
+其中 $B_{u,t}$ 为该单元当日的 2025 年实际消费（假设~\ref{as:budget}），目标是当日预期注册量（点击、浏览随之由式~\eqref{eq:response}、\eqref{eq:value} 给出）。关键词预算分配在文献中通常写成以凹响应为目标的背包型或凸规划问题\cite{feldman2007,zhang2012}，式~\eqref{eq:alloc} 属于这一类，其特点是用最小投放额显式地把“选词”与“定额”合并在一个问题中。上限不低于历史比例份额保证“按历史比例分配”总是可行，从而最优值不低于历史做法；若 $\sum_i\bar x_i<1.2B_{u,t}$ 则等比例放大上限以保证预算可用完。最小投放额 $m$ 是关键词选择机制：投放低于 $m$ 的词视为不投放，避免“每个词分几分钱”的无意义解。写 $a_i=\hat\varepsilon_{u,t}\rho_i c_i s_i^{-\gamma_u}$，目标即 $\sum_i a_i x_i^{\gamma_u}$。
 
 \subsection{求解算法与最优性}
 \label{sec:q3alg}
@@ -70,7 +72,7 @@ $\mathcal S\gets\{i:\ x_i(\lambda_{\mathrm{hi}})>0\}$\;
 
 \subsection{反事实基线、不确定性与备选预算口径}
 \label{sec:q3base}
-优越性通过同一响应模型、同一日乘子、同一预算下的反事实比较说明。基线一"按历史比例"复现 2025 年的做法：$x^{\mathrm{prop}}_i=B_{u,t}s_i/\sum_{j\in\mathcal K^{e}_u}s_j$（对该单元全部候选词，因此比优化器多用了被剔除的词）；基线二"均匀分配"：$x^{\mathrm{eq}}_i=B_{u,t}/|\mathcal K^{e}_u|$。弹性的抽样不确定性用参数自助法\cite{efron1993}传播：每次抽 $\gamma_u^{(b)}\sim N(\hat\gamma_u,\mathrm{se}_u)$（截断到 $[0.3,0.95]$），重解最优与基线，取提升比的 2.5\% 与 97.5\% 分位（100 次）。作为预算口径的备选，"窗口预算"允许单元在 8 天内跨日调配：先按各日期望效率乘子求解 $\max\{\sum_t\hat\varepsilon_{u,t}X_t^{\gamma_u}:\ \sum_tX_t=\sum_tB_{u,t},\ X_t\le1.5\max_tB_{u,t}\}$（当日内上限不起作用时内层最优值恰为 $K_uX_t^{\gamma_u}$，两层分解精确），再按 $(\mathrm P_{u,t})$ 分配到关键词。
+优越性通过同一响应模型、同一日乘子、同一预算下的反事实比较说明。基线一“按历史比例”复现 2025 年的做法：$x^{\mathrm{prop}}_i=B_{u,t}s_i/\sum_{j\in\mathcal K^{e}_u}s_j$（对该单元全部候选词，因此比优化器多用了被剔除的词）；基线二“均匀分配”：$x^{\mathrm{eq}}_i=B_{u,t}/|\mathcal K^{e}_u|$。弹性的抽样不确定性用参数自助法\cite{efron1993}传播：每次抽 $\gamma_u^{(b)}\sim N(\hat\gamma_u,\mathrm{se}_u)$（截断到 $[0.3,0.95]$），重解最优与基线，取提升比的 2.5\% 与 97.5\% 分位（100 次）。作为预算口径的备选，“窗口预算”允许单元在 8 天内跨日调配：先按各日期望效率乘子求解 $\max\{\sum_t\hat\varepsilon_{u,t}X_t^{\gamma_u}:\ \sum_tX_t=\sum_tB_{u,t},\ X_t\le1.5\max_tB_{u,t}\}$（当日内上限不起作用时内层最优值恰为 $K_uX_t^{\gamma_u}$，两层分解精确），再按 $(\mathrm P_{u,t})$ 分配到关键词。
 
 \subsection{结果与优越性}
 \label{sec:q3res}
@@ -78,13 +80,13 @@ $\mathcal S\gets\{i:\ x_i(\lambda_{\mathrm{hi}})>0\}$\;
 
 \papertable{tab_q3_summary}{两个窗口各推广单元的分配结果：预算、候选与平均入选词数、按历史比例与最优的预期注册、提升及弹性自助 95\% 区间、CPC}{tab:q3-summary}
 
-\paperfigure[\linewidth]{fig_q3_gain.pdf}{左、中：两个窗口逐日预期注册量——最优分配、按历史比例、均匀分配；右：弹性参数自助抽样下最优分配相对历史比例的提升分布。}{fig:q3-gain}
+\paperfigure[0.94\linewidth]{fig_q3_gain.pdf}{左、中：两个窗口逐日预期注册量——最优分配、按历史比例、均匀分配；右：弹性参数自助抽样下最优分配相对历史比例的提升分布。}{fig:q3-gain}
 
-提升的来源见图~\ref{fig:alloc-shift}。最优解把预算从 CPC 高、注册率低的词移向 $\rho_i/\mathrm{CPC}_i$ 高的词：一部分重点词被推到上限（沿上限线分布，\valQthreeCappedKeywordDays{} 个入选词--日达到上限），另一部分被压缩或剔除（\valKeyCount{} 个重点词中约半数至少入选一天），8 月窗口每个单元--日平均入选 \valQthreeMeanSelectedAug{} 个词。图中位于上限线之上的一簇点是历史日均消费低于 $m/\mu$ 的长尾词（主要是潜力词与黄金词）：按式~\eqref{eq:caps} 其上限就是最小投放额 $m$，它们以每天 $m$ 元的试探性投放入选——8 月窗口这类词--日共 \valQthreeFloorKeywordDaysAug{} 个，只占预算的 \valQthreeFloorSpendSharePctAug\%，贡献预期注册的 \valQthreeFloorRegsSharePctAug\%；幂函数在远离历史工作点处的外推可靠性有限，对这些词的预期只应理解为"值得小额测试"，主要提升仍来自重点词之间的再分配。提升幅度随单元的候选词数与弹性差异而不同：8 月窗口单元 \valQthreeMinGainUnitAug{} 的提升最小（\valQthreeMinUnitGainPctAug\%），单元 \valQthreeMaxGainUnitAug{} 最大（\valQthreeMaxUnitGainPctAug\%）；消费最大的单元 \valBiggestUnitId{} 候选词最少且弹性最低，提升幅度也接近最低（表~\ref{tab:q3-summary}）。因此"低成本、高效益"的实现路径主要是长尾单元内部的词级再分配，而不是改变类别间的消费结构（重点词在两种方案下都占消费的绝大部分）。
+提升的来源见图~\ref{fig:alloc-shift}。最优解把预算从 CPC 高、注册率低的词移向 $\rho_i/\mathrm{CPC}_i$ 高的词：一部分重点词被推到上限（沿上限线分布，\valQthreeCappedKeywordDays{} 个入选词--日达到上限），另一部分被压缩或剔除（\valKeyCount{} 个重点词中约半数至少入选一天），8 月窗口每个单元--日平均入选 \valQthreeMeanSelectedAug{} 个词。图中位于上限线之上的一簇点是历史日均消费低于 $m/\mu$ 的长尾词（主要是潜力词与黄金词）：按式~\eqref{eq:caps} 其上限就是最小投放额 $m$，它们以每天 $m$ 元的试探性投放入选——8 月窗口这类词--日共 \valQthreeFloorKeywordDaysAug{} 个，只占预算的 \valQthreeFloorSpendSharePctAug\%，贡献预期注册的 \valQthreeFloorRegsSharePctAug\%；幂函数在远离历史工作点处的外推可靠性有限，对这些词的预期只应理解为“值得小额测试”，主要提升仍来自重点词之间的再分配。提升幅度随单元的候选词数与弹性差异而不同：8 月窗口单元 \valQthreeMinGainUnitAug{} 的提升最小（\valQthreeMinUnitGainPctAug\%），单元 \valQthreeMaxGainUnitAug{} 最大（\valQthreeMaxUnitGainPctAug\%）；消费最大的单元 \valBiggestUnitId{} 候选词最少且弹性最低，提升幅度也接近最低（表~\ref{tab:q3-summary}）。因此“低成本、高效益”的实现路径主要是长尾单元内部的词级再分配，而不是改变类别间的消费结构（重点词在两种方案下都占消费的绝大部分）。
 
-\paperfigure[\linewidth]{fig_allocation_shift.pdf}{8 月窗口最优分配的机制。左：每个入选关键词的窗口日均最优投放与其 2025 年日均消费（双对数，颜色为类别；虚线为投放不变，点线为上限倍数）；右：各类别的候选词数与至少入选一天的词数。}{fig:alloc-shift}
+\paperfigure[0.9\linewidth]{fig_allocation_shift.pdf}{8 月窗口最优分配的机制。左：每个入选关键词的窗口日均最优投放与其 2025 年日均消费（双对数，颜色为类别；虚线为投放不变，点线为上限倍数）；右：各类别的候选词数与至少入选一天的词数。}{fig:alloc-shift}
 
-窗口预算的备选口径（表~\ref{tab:q3-window}）显示：允许跨日调配时，2 月窗口再提升 \valQthreeWindowGainPctFeb\%（春节期间各日效率相近），8 月窗口再提升 \valQthreeWindowGainPctAug\%——把 8 月 3、4 日（周日、周一，效率乘子最低）的预算移到工作日；这与问题一"周一、周日减投过度"的结论一致，但方向相反：模型建议在效率低的日子少投、效率高的日子多投，而 2025 年的做法是在效率高的工作日与效率低的周日都按惯性投放。
+窗口预算的备选口径（表~\ref{tab:q3-window}）显示：允许跨日调配时，2 月窗口再提升 \valQthreeWindowGainPctFeb\%（春节期间各日效率相近），8 月窗口再提升 \valQthreeWindowGainPctAug\%——把 8 月 3、4 日（周日、周一，效率乘子最低）的预算移到工作日；这与问题一“周一、周日减投过度”的结论一致，但方向相反：模型建议在效率低的日子少投、效率高的日子多投，而 2025 年的做法是在效率高的工作日与效率低的周日都按惯性投放。
 
 \papertable{tab_q3_window_budget}{窗口预算跨日调配（备选口径）相对逐日预算的额外提升}{tab:q3-window}
 

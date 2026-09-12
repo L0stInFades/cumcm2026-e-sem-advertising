@@ -4,7 +4,7 @@
 
 \subsection{数据说明与质量}
 \label{sec:q1data}
-所有数据经契约校验（列类型、取值范围、漏斗一致性：点击 $\le$ 展现、上方位展现 $\le$ 展现、首位展现 $\le$ 上方位展现、上方位点击 $\le$ 点击、上方位消费 $\le$ 消费）全部通过。Sheet1 有 \valUnitDays{} 条单元--日记录，覆盖 \valPlansCount{} 个方案、\valUnitsCount{} 个推广单元和 2025 年全部 365 天，（日期、方案、单元）无重复；各单元的投放起止不同（四个单元自 5 月 21 日起投，一个单元 11 月 28 日停投），春节等假期多数单元停投，\valZeroSpendUnitDays{} 条记录有展现而消费为零。全年合计消费 \valTotalSpend{} 元（题述"142 余万元"）、点击 \valTotalClicks{} 次、展现 \valTotalImpressions{} 次。Sheet2 的新注册数合计 \valTotalRegs{} 人。Sheet3 有 \valKeywordRows{} 条关键词记录（题述"6000 多个关键词"多于附件行数，本文以附件为准，假设~\ref{as:data}），关键词 ID 为匿名整数，共 \valUniqueKeywordIds{} 个不同 ID，其中 \valSharedKeywordIds{} 个 ID 被 2--4 个单元共用（涉及 \valSharedKeywordRows{} 条记录）；\valZeroKeywords{} 条（\valZeroKeywordSharePct\%）全年零消费零点击，其跳出率与时长以"/"标记；跳出率为 0--1 的小数，平均访问时长为"HH:MM:SS"或数值 0（84 行）。Sheet3 分单元的消费与点击合计与 Sheet1 完全对账（总消费差异 0.02 元，为四舍五入）。
+所有数据经契约校验（列类型、取值范围、漏斗一致性：点击 $\le$ 展现、上方位展现 $\le$ 展现、首位展现 $\le$ 上方位展现、上方位点击 $\le$ 点击、上方位消费 $\le$ 消费）全部通过。Sheet1 有 \valUnitDays{} 条单元--日记录，覆盖 \valPlansCount{} 个方案、\valUnitsCount{} 个推广单元和 2025 年全部 365 天，（日期、方案、单元）无重复；各单元的投放起止不同（四个单元自 5 月 21 日起投，一个单元 11 月 28 日停投），春节等假期多数单元停投，\valZeroSpendUnitDays{} 条记录有展现而消费为零。全年合计消费 \valTotalSpend{} 元（题述“142 余万元”）、点击 \valTotalClicks{} 次、展现 \valTotalImpressions{} 次。Sheet2 的新注册数合计 \valTotalRegs{} 人。Sheet3 有 \valKeywordRows{} 条关键词记录（题述“6000 多个关键词”多于附件行数，本文以附件为准，假设~\ref{as:data}），关键词 ID 为匿名整数，共 \valUniqueKeywordIds{} 个不同 ID，其中 \valSharedKeywordIds{} 个 ID 被 2--4 个单元共用（涉及 \valSharedKeywordRows{} 条记录）；\valZeroKeywords{} 条（\valZeroKeywordSharePct\%）全年零消费零点击，其跳出率与时长以“/”标记；跳出率为 0--1 的小数，平均访问时长为“HH:MM:SS”或数值 0（84 行）。Sheet3 分单元的消费与点击合计与 Sheet1 完全对账（总消费差异 0.02 元，为四舍五入）。
 
 \subsection{指标体系与四个方面的事实}
 \label{sec:q1kpi}
@@ -40,9 +40,9 @@ G=\frac{n+1-2\sum_{k=1}^{n}\bigl(\sum_{j\le k}S_{(j)}\bigr)/\sum_{j}S_{(j)}}{n}.
 消费在单元间同样集中：单元 \valBiggestUnitId{} 占全年消费 \valBiggestUnitSpendSharePct\%，各单元 CPC 从 \valMinUnitCpc{} 元到 \valMaxUnitCpc{} 元不等（表~\ref{tab:unit-kpis}）。第~\ref{sec:q1attr} 节估计的点击--消费弹性 $\gamma_u$ 全部小于 1（合并估计 \valPooledGamma，标准误 \valPooledGammaSe），即边际收益递减；而消费最大的单元 \valBiggestUnitId{} 的弹性最低（表~\ref{tab:attr}），其 CPC 也最高，说明预算在该单元上已进入边际成本快速上升的区域，把部分预算转移到弹性更高、CPC 更低的单元能以同样的钱换取更多点击与注册——这正是问题三、四的优化空间。
 
 \paragraph{投放策略与时间}
-图~\ref{fig:daily} 显示日消费、点击与注册的全年走势：三条序列高度同步（注册与消费的相关系数约 0.8），春节后 2--3 月出现全年高峰，6--7 月为低谷；每周内呈明显的"周一、周日低"模式，法定节假日（阴影）期间三者同时深跌。这些规律与假日效应在下一小节用回归量化。
+图~\ref{fig:daily} 显示日消费、点击与注册的全年走势：三条序列高度同步（注册与消费的相关系数约 0.8），春节后 2--3 月出现全年高峰，6--7 月为低谷；每周内呈明显的“周一、周日低”模式，法定节假日（阴影）期间三者同时深跌。这些规律与假日效应在下一小节用回归量化。
 
-\paperfigure[0.86\linewidth]{fig_daily_series.pdf}{2025 年日消费额、日点击量与日新注册数（细线为日值，粗线为 7 日滑动均值；阴影为法定节假日，竖虚线为调休上班日）。}{fig:daily}
+\paperfigure[0.7\linewidth]{fig_daily_series.pdf}{2025 年日消费额、日点击量与日新注册数（细线为日值，粗线为 7 日滑动均值；阴影为法定节假日，竖虚线为调休上班日）。}{fig:daily}
 
 \subsection{日历回归与假日效应}
 \label{sec:q1cal}
@@ -58,7 +58,7 @@ G=\frac{n+1-2\sum_{k=1}^{n}\bigl(\sum_{j\le k}S_{(j)}\bigr)/\sum_{j}S_{(j)}}{n}.
 
 \papertable{tab_calendar_effects}{日历回归~\eqref{eq:calreg} 的效应估计（相对周三 / 普通日，\%；HC3 稳健 95\% 置信区间与 $p$ 值）}{tab:calendar}
 
-\paperfigure[0.88\linewidth]{fig_calendar_effects.pdf}{周几、法定节假日、调休、假前与假后对日新注册数、消费额与点击量的效应（相对周三 / 普通日，\%），横线为 HC3 稳健 95\% 置信区间。}{fig:calendar}
+\paperfigure[0.76\linewidth]{fig_calendar_effects.pdf}{周几、法定节假日、调休、假前与假后对日新注册数、消费额与点击量的效应（相对周三 / 普通日，\%），横线为 HC3 稳健 95\% 置信区间。}{fig:calendar}
 
 表~\ref{tab:calendar} 与图~\ref{fig:calendar} 给出估计结果。法定节假日的注册数效应为 $\valHolidayRegEffectPct\%$（95\% CI $[\valHolidayRegCiLow,\ \valHolidayRegCiHigh]$，$p=\num{\valHolidayRegPSci}$），消费额 $\valHolidaySpendEffectPct\%$、点击量 $\valHolidayClicksEffectPct\%$、展现量 $\valHolidayImpEffectPct\%$ 同样显著；Mann--Whitney 检验给出假日与工作日注册中位数 \valHolidayRegMedian{} 与 \valWorkdayRegMedian{} 人（比值 \valHolidayRegMedianRatio），$p=\num{\valHolidayRegMannWhitneyP}$，两种方法结论一致。价格与质量指标没有假日效应：CPC 的假日系数为 \valHolidayCpcEffect{} 元（$p=\valHolidayCpcP$），CTR 为 \valHolidayCtrEffectPp{} 个百分点（$p=\valHolidayCtrP$）；上方位占比在假日下降 \valHolidayTopEffectPp{} 个百分点（$p=\valHolidayTopP$），与减投后排位后移一致。周几效应显著（Wald 检验 $p=\num{\valRegWeekdayWaldP}$）：周一注册 $\valMondayRegEffectPct\%$、周日 $\valSundayRegEffectPct\%$，周六 $\valSaturdayRegEffectPct\%$（$p=\valSaturdayRegP$），周二至周五与周三无显著差异；调休上班日与普通日无差异（$\valAdjustedWorkdayRegEffectPct\%$，$p=\valAdjustedWorkdayRegP$）；假前一日、假后一日的点估计为负但因样本少不显著。
 
@@ -87,9 +87,9 @@ R_t=c_0+\sum_{u\in\mathcal U} r_u\,\tilde C_{u,t}+\bm\beta^{\top}\bm D_t+e_t,\qq
 
 \papertable{tab_attribution_response}{各单元的注册率（式~\eqref{eq:attr}）、归因注册与注册成本，以及弹性估计（式~\eqref{eq:elast}）与采用值}{tab:attr}
 
-\paperfigure[0.9\linewidth]{fig_attribution.pdf}{日新注册数与归因回归~\eqref{eq:attr} 的拟合值（竖虚线右侧为留出期；阴影为法定节假日）。}{fig:attr}
+\paperfigure[0.8\linewidth]{fig_attribution.pdf}{日新注册数与归因回归~\eqref{eq:attr} 的拟合值（竖虚线右侧为留出期；阴影为法定节假日）。}{fig:attr}
 
-\paperfigure[0.82\linewidth]{fig_response_curves.pdf}{各推广单元日点击量--日消费额散点（双对数）与幂函数响应曲线 $c_u(S/s_u)^{\gamma_u}$；标题中带 * 的单元使用合并弹性。}{fig:resp}
+\paperfigure[0.6\linewidth]{fig_response_curves.pdf}{各推广单元日点击量--日消费额散点（双对数）与幂函数响应曲线 $c_u(S/s_u)^{\gamma_u}$；标题中带 * 的单元使用合并弹性。}{fig:resp}
 
 \subsection{合理性小结}
 综合以上事实：(i) 创意与匹配在上方位有效，但约四分之三的展现落在上方位之外且 CTR 极低，质量度与匹配方式有改进空间；(ii) 关键词库长尾严重、四成的词零消费、\valSharedKeywordIds{} 个词跨单元重复投放，缺乏清理与去重；(iii) 预算过度集中于弹性最低、CPC 最高的单元，违背边际收益均衡；(iv) 假日减投幅度与需求侧效应大体匹配，但周一、周日的大幅减投没有需求侧依据。后三点分别由问题二（分类清理）、问题三与四（预算再分配与时间安排）给出改进方案。
