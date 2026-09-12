@@ -17,6 +17,8 @@ from pipelines.e.classify import LABELS
 def _fmt(value: Any, spec: str) -> str:
     if value is None or (isinstance(value, float) and not np.isfinite(value)):
         return "--"
+    if spec == "raw":  # already valid LaTeX (math, \%); inserted verbatim
+        return str(value)
     if spec == "s":
         return tex_escape(str(value))
     if spec == "d":
@@ -126,9 +128,10 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
                 "source": {"unit": "单元估计", "pooled": "合并估计"}[attribution["rate_source"][unit]],
                 "attributed": attributed,
                 "cost_per_reg": spend / attributed if attributed > 0 else np.nan,
-                "gamma": u["gamma"],
+                "gamma_hat": u["gamma_hat"],
                 "gamma_se": u["gamma_se"],
                 "r2": u["r2"],
+                "gamma": u["gamma"],
                 "gsrc": {"unit": "单元", "pooled": "合并"}[u["gamma_source"]],
             }
         )
@@ -142,9 +145,10 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
             ("source", "来源", "s"),
             ("attributed", "归因注册/人", ",.0f"),
             ("cost_per_reg", "注册成本/元", ".1f"),
-            ("gamma", "弹性 $\\gamma$", ".3f"),
+            ("gamma_hat", "$\\hat\\gamma_u$", ".3f"),
             ("gamma_se", "SE", ".3f"),
             ("r2", "$R^2$", ".2f"),
+            ("gamma", "采用 $\\gamma_u$", ".3f"),
             ("gsrc", "$\\gamma$ 来源", "s"),
         ],
     )
@@ -369,13 +373,33 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
         )
         names.append("tab_q3_sensitivity")
 
+    def cvx_check(a: dict[str, Any]) -> dict[str, Any]:
+        return next((c for c in a["checks"] if c["name"] == "within_convex_relaxation_bound"), {})
+
+    tiny = sum(1 for a in audit["audits"] if cvx_check(a).get("tiny_budget"))
+    informative = [
+        float(cvx_check(a)["relative_gap"])
+        for a in audit["audits"]
+        if cvx_check(a) and not cvx_check(a).get("tiny_budget")
+    ]
     ver_rows = [
         {"item": "Q3 单元-日分配问题数", "value": f"{audit['groups']}"},
         {
-            "item": "Q3 独立校验（可行性 / KKT / 配对转移 / 通用凸求解器）",
+            "item": "Q3 独立校验（可行性 / KKT / 配对转移与插入 / 通用凸求解器上界）",
             "value": "全部通过" if audit["ok"] else "存在失败",
         },
-        {"item": "Q3 与通用凸求解器目标值最大相对差", "value": f"{audit['max_cvx_gap']:.2e}"},
+        {
+            "item": "Q3 凸松弛总体最优性界 $(\\sum\\text{上界}-\\sum\\text{目标值})/\\sum\\text{目标值}$",
+            "value": f"{100 * audit['aggregate_gap']:.3f}\\%",
+        },
+        {
+            "item": f"Q3 单个问题的最大相对差（不含 {tiny} 个预算低于 20 倍最小投放额的微小问题）",
+            "value": f"{100 * max(informative):.3f}\\%" if informative else "--",
+        },
+        {
+            "item": "Q3 微小问题的最大相对差（松弛界在此处不具信息量，见正文）",
+            "value": f"{100 * audit['max_cvx_gap']:.1f}\\%",
+        },
         {
             "item": "响应模型校准：历史比例分配预测点击 vs 实际（MAPE / 中位 APE）",
             "value": f"{100 * calib['mape']:.1f}\\% / {100 * calib['median_ape']:.1f}\\%",
@@ -392,8 +416,8 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
         ctx,
         "tab_verification",
         pd.DataFrame(ver_rows),
-        [("item", "检验项", "s"), ("value", "结果", "s")],
-        align="p{0.66\\linewidth}l",
+        [("item", "检验项", "raw"), ("value", "结果", "raw")],
+        align="p{0.72\\linewidth}l",
     )
     names.append("tab_verification")
 
@@ -417,7 +441,7 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
         "tab_backtest",
         bt,
         [
-            ("target_name", "目标", "s"),
+            ("target_name", "目标", "raw"),
             ("model_name", "模型", "s"),
             ("mae", "MAE", ".3f"),
             ("rmse", "RMSE", ".3f"),

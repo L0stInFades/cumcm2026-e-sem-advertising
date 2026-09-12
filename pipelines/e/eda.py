@@ -290,6 +290,9 @@ def attribution_model(
         "mae": float(np.abs(resid).mean()),
         "holdout": holdout,
         "fitted": pd.DataFrame({"date": daily.index, "regs": y, "fitted": pred}),
-        "attributed_regs": {u: float((Xu[:, i] * r_units[u]).sum()) for i, u in enumerate(units)},
+        # attributed with the rates actually used downstream (unit rate or pooled fallback); the raw
+        # NNLS rates are kept for transparency (they are zero for units clipped at the bound)
+        "attributed_regs": {u: float((Xu[:, i] * rates[u]).sum()) for i, u in enumerate(units)},
+        "attributed_regs_raw": {u: float((Xu[:, i] * r_units[u]).sum()) for i, u in enumerate(units)},
         "baseline_regs": float(beta[0] * n),
     }

@@ -72,7 +72,8 @@ def eda(ctx: StageContext) -> dict[str, Any]:
     _save(ctx, kpis, "unit_kpis")
     conc = eda_mod.keyword_concentration(kw)
     _save(ctx, conc.pop("lorenz"), "lorenz")
-    _save(ctx, conc.pop("per_unit"), "keyword_per_unit")
+    kw_per_unit = conc.pop("per_unit")
+    _save(ctx, kw_per_unit, "keyword_per_unit")
     ctx.write_json("concentration.json", conc)
 
     coef_frames, summaries = [], []
@@ -123,6 +124,9 @@ def eda(ctx: StageContext) -> dict[str, Any]:
     other_clicks = total_clicks - s1["上方位点击量"].sum()
     ctx.number("OtherCpc", (total_spend - s1["上方位消费额"].sum()) / other_clicks, ".4f")
     ctx.number("UnitDays", len(s1))
+    ctx.number("UnitsCount", int(s1["推广单元ID"].nunique()))
+    ctx.number("PlansCount", int(s1["方案ID"].nunique()))
+    ctx.number("ZeroSpendUnitDays", int((s1["消费额"] == 0).sum()))
     ctx.number("KeywordRows", conc["keywords"])
     ctx.number("UniqueKeywordIds", conc["unique_keyword_ids"])
     ctx.number("SharedKeywordIds", conc["shared_keyword_ids"])
@@ -134,6 +138,14 @@ def eda(ctx: StageContext) -> dict[str, Any]:
     big = kpis.sort_values("spend", ascending=False).iloc[0]
     ctx.number("BiggestUnitSpendSharePct", 100 * big["spend_share"], ".2f")
     ctx.number("BiggestUnitId", int(big["推广单元ID"]))
+    brand = kpis.sort_values("ctr", ascending=False).iloc[0]  # navigational/brand-type unit: extreme CTR
+    ctx.number("TopCtrUnitId", int(brand["推广单元ID"]))
+    ctx.number("TopCtrUnitCtrPct", 100 * brand["ctr"], ".1f")
+    ctx.number("TopCtrUnitCpc", brand["cpc"], ".2f")
+    ctx.number("TopCtrUnitTopSharePct", 100 * brand["top_share"], ".1f")
+    ctx.number(
+        "TopCtrUnitKeywords", int(kw_per_unit.loc[kw_per_unit["推广单元ID"] == brand["推广单元ID"], "keywords"].iloc[0])
+    )
 
     def term(target: str, name: str) -> pd.Series:
         return coefs[(coefs["target"] == target) & (coefs["term"] == name)].iloc[0]
@@ -144,6 +156,7 @@ def eda(ctx: StageContext) -> dict[str, Any]:
         ctx.number(f"Holiday{key}CiLow", row["effect_pct_low"], ".2f")
         ctx.number(f"Holiday{key}CiHigh", row["effect_pct_high"], ".2f")
         ctx.number(f"Holiday{key}P", row["p"], ".4f")
+        ctx.number(f"Holiday{key}PSci", row["p"], ".1e")
     for name, key in (
         ("adjusted_workday", "AdjustedWorkday"),
         ("pre_holiday", "PreHoliday"),
@@ -165,15 +178,27 @@ def eda(ctx: StageContext) -> dict[str, Any]:
     ctx.number("HolidayRegGivenSpendCiHigh", ctrl["effect_pct_high"], ".2f")
     ctx.number("HolidayRegGivenSpendP", ctrl["p"], ".4f")
     ctx.number("MondayRegGivenSpendEffectPct", term("regs|spend", "wd_周一")["effect_pct"], ".2f")
+    ctx.number("MondayRegGivenSpendP", term("regs|spend", "wd_周一")["p"], ".4f")
     ctx.number("SundayRegGivenSpendEffectPct", term("regs|spend", "wd_周日")["effect_pct"], ".2f")
+    ctx.number("SundayRegGivenSpendP", term("regs|spend", "wd_周日")["p"], ".4f")
     ctx.number("RegSpendElasticity", term("regs|spend", "log_spend")["estimate"], ".4f")
     ctx.number("RegSpendElasticitySe", term("regs|spend", "log_spend")["se"], ".4f")
+    ctx.number("HolidayTopEffectPp", 100 * term("top_share", "holiday")["estimate"], ".2f")
+    ctx.number("HolidayTopP", term("top_share", "holiday")["p"], ".4f")
+    ctx.number("HolidayCtrEffectPp", 100 * term("ctr", "holiday")["estimate"], ".3f")
+    ctx.number("HolidayCtrP", term("ctr", "holiday")["p"], ".4f")
     reg_summary = next(s for s in summaries if s["target"] == "regs")
     ctx.number("RegCalendarRsq", reg_summary["r2"], ".4f")
     ctx.number("RegWeekdayWaldP", reg_summary["weekday_wald_p"], ".2e")
+    ctx.number("SpendCalendarRsq", next(s for s in summaries if s["target"] == "spend")["r2"], ".4f")
+    ctx.number("RegGivenSpendRsq", next(s for s in summaries if s["target"] == "regs|spend")["r2"], ".4f")
     mw = next(m for m in nonparam if m["target"] == "regs")
     ctx.number("HolidayRegMedianRatio", mw["ratio_of_medians"], ".4f")
     ctx.number("HolidayRegMannWhitneyP", mw["p"], ".2e")
+    ctx.number("HolidayRegMedian", mw["holiday_median"], ".0f")
+    ctx.number("WorkdayRegMedian", mw["workday_median"], ".0f")
+    ctx.number("HolidayDays", mw["holiday_n"])
+    ctx.number("WorkdayDays", mw["workday_n"])
     ctx.number("AttributionLambda", attribution["lambda"], ".1f")
     ctx.number("AttributionRsq", attribution["r2"], ".4f")
     ctx.number("AttributionHoldoutRsq", attribution["holdout"]["r2"], ".4f")
@@ -182,6 +207,7 @@ def eda(ctx: StageContext) -> dict[str, Any]:
     ctx.number("PooledRegRatePerHundredClicks", 100 * attribution["pooled_rate"], ".4f")
     attributed = sum(attribution["attributed_regs"].values())
     ctx.number("AttributedRegs", attributed, ",.0f")
+    ctx.number("AttributedRegsSharePct", 100 * attributed / float(daily["regs"].sum()), ".2f")
     ctx.number("CostPerAttributedReg", total_spend / attributed, ".2f")
     ctx.number("UnitsWithOwnRate", sum(1 for v in attribution["rate_source"].values() if v == "unit"))
     ctx.number("PooledGamma", units["pooled_gamma"].iloc[0], ".4f")
@@ -655,6 +681,18 @@ def allocate(ctx: StageContext) -> dict[str, Any]:
             ctx.number(f"QthreeWindowGainPct{key}", 100 * (aw["regs_window"].sum() / w["opt_regs"] - 1), ".2f")
     ctx.number("QthreeAuditGroups", len(audits))
     ctx.number("QthreeMaxCvxGap", float(np.nanmax([a["cvxpy"].get("relative_gap", np.nan) for a in audits])), ".2e")
+
+    def cvx_check(a: dict[str, Any]) -> dict[str, Any]:
+        return next((c for c in a["checks"] if c["name"] == "within_convex_relaxation_bound"), {})
+
+    tiny_groups = [a for a in audits if cvx_check(a).get("tiny_budget")]
+    informative = [
+        float(cvx_check(a)["relative_gap"]) for a in audits if cvx_check(a) and not cvx_check(a).get("tiny_budget")
+    ]
+    ctx.number("QthreeCvxTinyGroups", len(tiny_groups))
+    ctx.number("QthreeMaxCvxGapInformativePct", 100 * max(informative) if informative else 0.0, ".3f")
+    ctx.number("QthreeCappedKeywordDays", int(sum(a["n_capped"] for a in audits)))
+    ctx.number("QthreeSelectedKeywordDays", int(sum(a["n_selected"] for a in audits)))
     relaxed = sum(a["cvxpy"].get("relaxed_objective", a["objective"]) for a in audits)
     achieved = sum(a["objective"] for a in audits)
     ctx.number("QthreeAggregateGapPct", 100 * (relaxed - achieved) / achieved, ".3f")

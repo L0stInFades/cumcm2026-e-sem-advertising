@@ -246,27 +246,50 @@ def fig_q3_gain(ctx: StageContext, summary: pd.DataFrame, boot: pd.DataFrame) ->
     return plotting.save(fig, ctx.out("figures", "fig_q3_gain.pdf"))
 
 
-def fig_allocation_mix(ctx: StageContext, allocation: pd.DataFrame, params: pd.DataFrame) -> dict[str, Any]:
-    fig, axes = plotting.new_figure(6.3, 2.6, ncols=2, sharey=True)
-    for ax, window in zip(axes, ("feb", "aug")):
-        a = allocation[allocation["window"] == window]
-        opt = a.groupby("label")["spend"].sum()
-        p = params[params["window"] == window]
-        hist = p.groupby("label")["spend"].sum()
-        labels = [lab for lab in LABELS[:4]]
-        vals_opt = np.array([opt.get(lab, 0.0) for lab in labels])
-        vals_hist = np.array([hist.get(lab, 0.0) for lab in labels])
-        vals_opt = 100 * vals_opt / vals_opt.sum()
-        vals_hist = 100 * vals_hist / vals_hist.sum()
-        x = np.arange(len(labels))
-        ax.bar(x - 0.2, vals_hist, width=0.38, color="#BBBBBB", label="2025 年实际")
-        ax.bar(x + 0.2, vals_opt, width=0.38, color=[LABEL_COLORS[lab] for lab in labels], label="最优分配")
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels)
-        ax.set_title({"feb": "2 月窗口", "aug": "8 月窗口"}[window], fontsize=8.5)
-    axes[0].set_ylabel("消费额占比 / %")
-    axes[0].legend(loc="upper right", fontsize=7)
-    return plotting.save(fig, ctx.out("figures", "fig_allocation_mix.pdf"))
+def fig_allocation_shift(
+    ctx: StageContext, allocation: pd.DataFrame, params: pd.DataFrame, cap_mult: float
+) -> dict[str, Any]:
+    """August window: where the optimum moves money -- optimal window-mean daily spend per keyword against its
+    2025 mean daily spend (log-log, class colours), and how many candidates of each class are ever selected."""
+    a = allocation[allocation["window"] == "aug"]
+    p = params[(params["window"] == "aug") & params["eligible"]]
+    n_days = max(a["date"].nunique(), 1)
+    opt = a.groupby("序号")["spend"].sum() / n_days  # zero on days when the keyword is not selected
+    df = p[["序号", "label", "s"]].copy()
+    df["x_opt"] = df["序号"].map(opt).fillna(0.0)
+    labels = list(LABELS[:4])
+    fig, axes = plotting.new_figure(6.3, 3.0, ncols=2, gridspec_kw={"width_ratios": [1.35, 1.0]})
+    ax = axes[0]
+    sel = df[df["x_opt"] > 0]
+    lo = max(min(sel["s"].min(), sel["x_opt"].min()), 1e-3)
+    hi = max(sel["s"].max(), sel["x_opt"].max())
+    ax.plot([lo, hi], [lo, hi], color="#888888", lw=0.8, ls="--", label="投放不变")
+    ax.plot([lo, hi], [cap_mult * lo, cap_mult * hi], color="#888888", lw=0.8, ls=":", label=f"上限 {cap_mult:g} 倍")
+    for label in labels:
+        sub = sel[sel["label"] == label]
+        if len(sub):
+            ax.scatter(
+                sub["s"], sub["x_opt"], s=9, color=LABEL_COLORS[label], alpha=0.7, lw=0, label=f"{label}（{len(sub)}）"
+            )
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("2025 年日均消费 / 元（对数）")
+    ax.set_ylabel("最优分配的窗口日均投放 / 元（对数）")
+    ax.legend(loc="upper left", fontsize=6.5)
+    ax = axes[1]
+    counts = df.groupby("label").agg(candidates=("序号", "size"), selected=("x_opt", lambda v: int((v > 0).sum())))
+    counts = counts.reindex(labels).fillna(0)
+    x = np.arange(len(labels))
+    ax.bar(x - 0.2, counts["candidates"], width=0.38, color="#BBBBBB", label="候选词")
+    ax.bar(x + 0.2, counts["selected"], width=0.38, color=[LABEL_COLORS[lab] for lab in labels], label="至少入选一天")
+    for i, (c, s) in enumerate(zip(counts["candidates"], counts["selected"])):
+        ax.text(i - 0.2, c, f"{int(c)}", ha="center", va="bottom", fontsize=6.5, color="#333333")
+        ax.text(i + 0.2, s, f"{int(s)}", ha="center", va="bottom", fontsize=6.5, color="#333333")
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=7.5)
+    ax.set_ylabel("关键词数（8 月窗口）")
+    ax.legend(loc="upper right", fontsize=7)
+    return plotting.save(fig, ctx.out("figures", "fig_allocation_shift.pdf"))
 
 
 def fig_backtest(ctx: StageContext, bt: pd.DataFrame) -> dict[str, Any]:
@@ -377,10 +400,11 @@ def build_figures(ctx: StageContext) -> dict[str, Any]:
             pd.read_parquet(alloc_dir / "allocation_summary.parquet"),
             pd.read_parquet(alloc_dir / "bootstrap.parquet"),
         ),
-        fig_allocation_mix(
+        fig_allocation_shift(
             ctx,
             pd.read_parquet(alloc_dir / "allocation.parquet"),
             pd.read_parquet(alloc_dir / "keyword_parameters.parquet"),
+            float(ctx.cfg("allocate.cap_multiplier", 4.0)),
         ),
         fig_backtest(ctx, pd.read_parquet(fc_dir / "backtest_summary.parquet")),
         fig_q4_plan(ctx, pd.read_parquet(fc_dir / "plan_by_unit_day.parquet")),
