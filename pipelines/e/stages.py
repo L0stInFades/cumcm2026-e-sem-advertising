@@ -143,6 +143,11 @@ def eda(ctx: StageContext) -> dict[str, Any]:
     big = kpis.sort_values("spend", ascending=False).iloc[0]
     ctx.number("BiggestUnitSpendSharePct", 100 * big["spend_share"], ".2f")
     ctx.number("BiggestUnitId", int(big["推广单元ID"]))
+    ctx.number("MaxUnitCpc", float(kpis["cpc"].max()), ".2f")
+    ctx.number("MinUnitCpc", float(kpis["cpc"].min()), ".2f")
+    weak = kpis.sort_values("ctr", ascending=True).iloc[0]
+    ctx.number("MinCtrUnitId", int(weak["推广单元ID"]))
+    ctx.number("MinCtrUnitCtrPct", 100 * weak["ctr"], ".2f")
     brand = kpis.sort_values("ctr", ascending=False).iloc[0]  # navigational/brand-type unit: extreme CTR
     ctx.number("TopCtrUnitId", int(brand["推广单元ID"]))
     ctx.number("TopCtrUnitCtrPct", 100 * brand["ctr"], ".1f")
@@ -226,6 +231,8 @@ def eda(ctx: StageContext) -> dict[str, Any]:
     ctx.number("MinUnitGamma", units["gamma"].min(), ".4f")
     ctx.number("MaxUnitGamma", units["gamma"].max(), ".4f")
     ctx.number("UnitsWithOwnGamma", int((units["gamma_source"] == "unit").sum()))
+    ctx.number("MinUnitGammaRsq", float(units["r2"].min()), ".2f")
+    ctx.number("MaxUnitGammaRsq", float(units["r2"].max()), ".2f")
     return {
         "unit_days": len(s1),
         "holiday_reg_effect_pct": float(term("regs", "holiday")["effect_pct"]),
@@ -702,8 +709,25 @@ def allocate(ctx: StageContext) -> dict[str, Any]:
     ]
     ctx.number("QthreeCvxTinyGroups", len(tiny_groups))
     ctx.number("QthreeMaxCvxGapInformativePct", 100 * max(informative) if informative else 0.0, ".3f")
+    ctx.number(
+        "QthreeMaxCvxGapPct", 100 * float(np.nanmax([a["cvxpy"].get("relative_gap", np.nan) for a in audits])), ".1f"
+    )
     ctx.number("QthreeCappedKeywordDays", int(sum(a["n_capped"] for a in audits)))
     ctx.number("QthreeSelectedKeywordDays", int(sum(a["n_selected"] for a in audits)))
+    # long-tail words whose cap is the floor itself: how much money and value they carry (August window)
+    aug = allocation[allocation["window"] == "aug"]
+    at_floor = aug["spend"] <= min_spend + 1e-9
+    ctx.number("QthreeFloorKeywordDaysAug", int(at_floor.sum()))
+    ctx.number("QthreeFloorSpendSharePctAug", 100 * float(aug.loc[at_floor, "spend"].sum() / aug["spend"].sum()), ".2f")
+    ctx.number("QthreeFloorRegsSharePctAug", 100 * float(aug.loc[at_floor, "regs"].sum() / aug["regs"].sum()), ".2f")
+    sw_aug = summary[summary["window"] == "aug"]
+    ctx.number("QthreeMeanSelectedAug", float(sw_aug["selected"].mean()), ".1f")
+    unit_gain = sw_aug.groupby("推广单元ID")[["opt_regs", "prop_regs"]].sum()
+    unit_gain_pct = 100 * (unit_gain["opt_regs"] / unit_gain["prop_regs"] - 1)
+    ctx.number("QthreeMinUnitGainPctAug", float(unit_gain_pct.min()), ".1f")
+    ctx.number("QthreeMaxUnitGainPctAug", float(unit_gain_pct.max()), ".1f")
+    ctx.number("QthreeMinGainUnitAug", int(unit_gain_pct.idxmin()))
+    ctx.number("QthreeMaxGainUnitAug", int(unit_gain_pct.idxmax()))
     relaxed = sum(a["cvxpy"].get("relaxed_objective", a["objective"]) for a in audits)
     achieved = sum(a["objective"] for a in audits)
     ctx.number("QthreeAggregateGapPct", 100 * (relaxed - achieved) / achieved, ".3f")
