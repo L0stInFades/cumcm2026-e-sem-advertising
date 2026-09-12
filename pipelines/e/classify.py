@@ -212,3 +212,52 @@ def verify_classification(
         }
     )
     return {"ok": all(c["ok"] for c in checks), "checks": checks, "counts": counts.astype(int).to_dict()}
+
+
+def axis_diagnostics(table: pd.DataFrame, main_thresholds: dict[str, float], method: str, seed: int) -> dict[str, Any]:
+    """How independent are the two classification axes, and what does an efficiency axis give instead?
+
+    The benefit index aggregates volume quantities (clicks, page views, attention seconds, attributed
+    registrations) and is therefore strongly co-monotone with spend: the quadrant scheme is mostly a
+    banding along one spend-benefit axis plus two small off-diagonal classes.  Reporting the
+    correlation, the economic weight of the off-diagonal classes and a dual classification on an
+    efficiency axis (attributed registrations per yuan) lets the reader judge the scheme instead of
+    taking the two-dimensional picture at face value.
+    """
+    active = table["spend"] > 0
+    a = table.loc[active]
+    lc = a["log10_cost"].to_numpy(dtype=float)
+    ben = a["benefit"].to_numpy(dtype=float)
+    pear = float(np.corrcoef(lc, ben)[0, 1])
+    spear = float(pd.Series(lc).corr(pd.Series(ben), method="spearman"))
+    clicks_spear = float(a["clicks"].corr(a["benefit"], method="spearman"))
+    # efficiency axis: attributed registrations per yuan (log scale), same threshold machinery
+    eff = np.log1p(a["reg_attr"].to_numpy(dtype=float) / np.maximum(a["spend"].to_numpy(dtype=float), 1e-9))
+    eff_norm = minmax(eff)
+    eff_thr = threshold(eff_norm, method, seed)
+    eff_series = pd.Series(0.0, index=table.index)
+    eff_series.loc[a.index] = eff_norm
+    eff_labels = assign_labels(table, eff_series, main_thresholds["log10_cost"], eff_thr)
+    counts = eff_labels.value_counts().reindex(LABELS, fill_value=0).astype(int).to_dict()
+    total_spend = float(table["spend"].sum())
+    total_clicks = float(table["clicks"].sum())
+    shares = {}
+    for label in LABELS:
+        sel = table["label"] == label
+        shares[label] = {
+            "n": int(sel.sum()),
+            "spend_share": float(table.loc[sel, "spend"].sum() / max(total_spend, 1e-9)),
+            "click_share": float(table.loc[sel, "clicks"].sum() / max(total_clicks, 1e-9)),
+        }
+    return {
+        "pearson_logcost_benefit": pear,
+        "r2_logcost_benefit": pear**2,
+        "spearman_logcost_benefit": spear,
+        "spearman_clicks_benefit": clicks_spear,
+        "spearman_logcost_efficiency": float(pd.Series(lc).corr(pd.Series(eff), method="spearman")),
+        "efficiency_threshold": float(eff_thr),
+        "efficiency_counts": counts,
+        "efficiency_agreement": float((eff_labels == table["label"]).mean()),
+        "label_shares": shares,
+        "efficiency_labels": eff_labels,
+    }

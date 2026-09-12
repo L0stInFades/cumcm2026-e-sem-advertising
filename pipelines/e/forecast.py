@@ -126,6 +126,10 @@ def rolling_backtest(
         known = int(test["month"].iloc[0]) in {*model.months, sorted(train["month"].unique())[0]}
         mu = model.predict(test, month_known=known)
         preds["calendar"] = (mu, mu - Z80 * model.sd, mu + Z80 * model.sd)
+        # the deployed 2026 intervals widen the residual sd by the between-month dispersion; the same
+        # widened interval is backtested here so that the reported coverage refers to what is shipped
+        sd_wide = float(np.sqrt(model.sd**2 + model.month_sd**2))
+        preds["calendar_wide"] = (mu, mu - Z80 * sd_wide, mu + Z80 * sd_wide)
         sn = seasonal_naive(train, target, test)
         tr = train[target].to_numpy(dtype=float)
         sn_err = tr[7:] - tr[:-7] if len(tr) > 7 else np.array([0.0])
@@ -213,6 +217,7 @@ def simulate_group(
         "views": views,
         "regs": regs,
         "p_top": p_top,
+        "p_first": p_first,
     }
 
 

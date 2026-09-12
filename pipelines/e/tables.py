@@ -117,17 +117,28 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
     attribution = json.loads((eda_dir / "attribution.json").read_text(encoding="utf-8"))
     units = pd.read_parquet(eda_dir / "unit_response.parquet")
     att_rows = []
+    att_diag = pd.read_parquet(eda_dir / "attribution_rates.parquet")
     for _, u in units.sort_values("推广单元ID").iterrows():
         unit = str(int(u["推广单元ID"]))
         spend = float(kpis.loc[kpis["推广单元ID"] == int(unit), "spend"].iloc[0])
         attributed = attribution["attributed_regs"].get(unit, 0.0)
+        dg = att_diag[att_diag["推广单元ID"] == int(unit)]
+        raw = float(dg["rate_raw"].iloc[0]) if len(dg) else np.nan
+        boot = (
+            f"[{100 * float(dg['boot_low'].iloc[0]):.2f}, {100 * float(dg['boot_high'].iloc[0]):.2f}]"
+            if len(dg)
+            else ""
+        )
         att_rows.append(
             {
                 "unit": unit,
                 "rate": 100 * attribution["rates"][unit],
                 "source": {"unit": "单元估计", "pooled": "合并估计"}[attribution["rate_source"][unit]],
+                "raw": f"{100 * raw:.2f}" + ("$^{\\dagger}$" if len(dg) and bool(dg["at_zero_bound"].iloc[0]) else ""),
+                "boot": boot,
                 "attributed": attributed,
                 "cost_per_reg": spend / attributed if attributed > 0 else np.nan,
+                "ndays": int(u["active_days"]),
                 "gamma_hat": u["gamma_hat"],
                 "gamma_se": u["gamma_se"],
                 "r2": u["r2"],
@@ -141,10 +152,13 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
         pd.DataFrame(att_rows),
         [
             ("unit", "推广单元ID", "s"),
-            ("rate", "注册率/(人/百次点击)", ".3f"),
+            ("rate", "采用注册率/(人/百次点击)", ".3f"),
             ("source", "来源", "s"),
+            ("raw", "原始 NNLS", "raw"),
+            ("boot", "自助 95\\% 区间", "s"),
             ("attributed", "归因注册/人", ",.0f"),
             ("cost_per_reg", "注册成本/元", ".1f"),
+            ("ndays", "活跃天数 $n_u$", "d"),
             ("gamma_hat", "$\\hat\\gamma_u$", ".3f"),
             ("gamma_se", "SE", ".3f"),
             ("r2", "$R^2$", ".2f"),
@@ -197,12 +211,30 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
                 **{lab: counts.get(lab, 0) for lab in LABELS},
             }
         )
+    axis = json.loads((cls_dir / "axis_diagnostics.json").read_text(encoding="utf-8"))
+    rob_rows.append(
+        {
+            "method": f"效率效益轴（每元归因注册）；与主口径一致率 {100 * axis['efficiency_agreement']:.1f}\\%",
+            "cost_thr": summary["thresholds"][summary["main"]]["cost_yuan"],
+            "ben_thr": axis["efficiency_threshold"],
+            **{lab: axis["efficiency_counts"].get(lab, 0) for lab in LABELS},
+        }
+    )
+    var = json.loads((cls_dir / "engagement_variant.json").read_text(encoding="utf-8"))
+    rob_rows.append(
+        {
+            "method": f"注意力分量取总停留时间；与主口径一致率 {100 * var['agreement']:.1f}\\%",
+            "cost_thr": summary["thresholds"][summary["main"]]["cost_yuan"],
+            "ben_thr": np.nan,
+            **{lab: var["counts"].get(lab, 0) for lab in LABELS},
+        }
+    )
     write_table(
         ctx,
         "tab_class_robustness",
         pd.DataFrame(rob_rows),
         [
-            ("method", "阈值方法", "s"),
+            ("method", "阈值方法 / 口径", "raw"),
             ("cost_thr", "成本阈值/元", ".2f"),
             ("ben_thr", "效益阈值", ".3f"),
             *[(lab, lab, "d") for lab in LABELS],
@@ -276,7 +308,7 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
         [
             ("window", "窗口", "s"),
             ("unit", "推广单元", "s"),
-            ("days", "天数", "d"),
+            ("days", "单元--日数", "d"),
             ("budget", "预算/元", ",.0f"),
             ("eligible", "候选词", "d"),
             ("selected", "平均入选词", ".1f"),
@@ -358,6 +390,8 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
         else pd.DataFrame()
     )
     if len(sens):
+        sens = sens.copy()
+        sens["relax"] = np.where(sens.get("relaxation", False), "是", "")
         write_table(
             ctx,
             "tab_q3_sensitivity",
@@ -369,6 +403,7 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
                 ("prop_regs", "历史比例注册/人", ".1f"),
                 ("gain", "提升/\\%", ".1f"),
                 ("selected", "平均入选词", ".1f"),
+                ("relax", "名义松弛", "s"),
             ],
         )
         names.append("tab_q3_sensitivity")
@@ -405,9 +440,59 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
             "value": f"{100 * calib['mape']:.1f}\\% / {100 * calib['median_ape']:.1f}\\%",
         },
     ]
+    mono = json.loads((alloc_dir / "sensitivity_monotonicity.json").read_text(encoding="utf-8"))
+    ver_rows.append(
+        {
+            "item": f"Q3 灵敏度单调性（{len(mono['cases'])} 个名义松弛情形的最优值不得低于基准）",
+            "value": "通过" if mono["ok"] else "失败",
+        }
+    )
+    feas = json.loads((alloc_dir / "baseline_feasibility.json").read_text(encoding="utf-8"))
+    ver_rows.append(
+        {
+            "item": "Q3 相对历史比例基线的逐问题占优（含最小投放额时无先验保证，故逐一核对）",
+            "value": f"{feas['unit_days_with_opt_at_least_prop']}/{feas['unit_days']}，最小比值 "
+            f"{feas['min_opt_over_prop_ratio']:.4f}",
+        }
+    )
+    ver_rows.append(
+        {
+            "item": "Q3 单元-日水平偏差重标定不变性（按 $\\lambda_{u,t}=$ 实际/基线点击重标定 $c_i$ 后的提升）",
+            "value": " / ".join(
+                f"{r['window']}: {r['gain_pct']:.2f}\\% $\\to$ {r['gain_pct_rescaled']:.2f}\\%"
+                for r in calib["rescaling_invariance"]
+            ),
+        }
+    )
+    dup = json.loads((alloc_dir / "duplication_exposure.json").read_text(encoding="utf-8"))
+    ver_rows.append(
+        {
+            "item": "Q3 跨单元重复投放暴露（预期注册 / 投放金额占比，蚕食高估的上界）",
+            "value": f"{100 * dup['regs_share']:.2f}\\% / {100 * dup['spend_share']:.2f}\\%",
+        }
+    )
     q4_audit = json.loads((fc_dir / "allocation_audit.json").read_text(encoding="utf-8"))
     ver_rows.append({"item": "Q4 分配问题数（跨日 + 单元-日）", "value": f"{q4_audit['groups']}"})
     ver_rows.append({"item": "Q4 独立校验", "value": "全部通过" if q4_audit["ok"] else "存在失败"})
+    joint = pd.read_parquet(fc_dir / "joint_relaxation.parquet")
+    ver_rows.append(
+        {
+            "item": "Q4 两层分解的联合最优性界（7 日 $\\times$ 关键词的可分离凹松弛，去下界、上限取最宽）",
+            "value": f"{100 * (joint['joint_bound'].sum() / joint['two_level'].sum() - 1):.3f}\\%"
+            f"（单个单元最大 {joint['gap_pct'].max():.1f}\\%，出现在预期注册仅 "
+            f"{joint.loc[joint['gap_pct'].idxmax(), 'two_level']:.1f} 人的最小单元）",
+        }
+    )
+    bt_all = pd.read_parquet(fc_dir / "backtest_summary.parquet")
+    wide = bt_all[bt_all["model"] == "calendar_wide"]
+    narrow = bt_all[bt_all["model"] == "calendar"]
+    ver_rows.append(
+        {
+            "item": "Q4 区间回测覆盖率（部署区间 / 仅残差区间，名义 80\\%）",
+            "value": f"{100 * wide['coverage80'].min():.1f}--{100 * wide['coverage80'].max():.1f}\\% / "
+            f"{100 * narrow['coverage80'].min():.1f}--{100 * narrow['coverage80'].max():.1f}\\%",
+        }
+    )
     cls_check = json.loads((cls_dir / "classification_check.json").read_text(encoding="utf-8"))
     ver_rows.append(
         {"item": "Q2 分类独立复核（规则重推 / 无效词定义 / 计数）", "value": "通过" if cls_check["ok"] else "失败"},
@@ -430,7 +515,12 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
         "logit_first": "logit 首位占比",
         "log_clicks": "$\\log$ 点击量",
     }
-    mnames = {"calendar": "日历回归", "seasonal_naive": "季节朴素", "mean28": "28 日均值"}
+    mnames = {
+        "calendar": "日历回归（残差区间）",
+        "calendar_wide": "日历回归（部署区间）",
+        "seasonal_naive": "季节朴素",
+        "mean28": "28 日均值",
+    }
     bt["target_name"] = bt["target"].map(tnames)
     bt["model_name"] = bt["model"].map(mnames)
     bt["cov_pct"] = 100 * bt["coverage80"]
@@ -443,8 +533,8 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
         [
             ("target_name", "目标", "raw"),
             ("model_name", "模型", "s"),
-            ("mae", "MAE", ".3f"),
-            ("rmse", "RMSE", ".3f"),
+            ("mae", "MAE", ".4f"),
+            ("rmse", "RMSE", ".4f"),
             ("pinball", "Pinball(0.1+0.9)", ".3f"),
             ("cov_pct", "80\\% 覆盖率/\\%", ".1f"),
         ],
@@ -533,29 +623,39 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
         "clicks": clicks_tot,
         "views": _unit_tot("views"),
         "regs": _unit_tot("regs"),
+        "p_top": tuple(float(np.average(days["p_top_mean"], weights=w_day)) for _ in range(3)),
+        "p_first": tuple(float(np.average(days["p_first_mean"], weights=w_day)) for _ in range(3)),
     }
     rng_rows = []
     for key, name, unit, agg_kind, prec in (
         ("cpc", "竞价（平均点击成本 CPC）", "元/次", "点击加权", 4),
         ("imp", "展现量", "次", "合计", 1),
         ("position", "展现位（排位指数 $\\pi$）", "--", "点击加权", 4),
+        ("p_top", "其中：上方位展现占比", "--", "点击加权", 4),
+        ("p_first", "其中：首位展现占比", "--", "点击加权", 4),
         ("clicks", "点击量", "次", "合计", 1),
         ("views", "浏览量", "次", "合计", 1),
         ("regs", "注册量", "人", "合计", 1),
     ):
         mean, lo, hi = (float(v) for v in agg[key])
-        kw = plan_kw[[f"{key}_mean", f"{key}_q10", f"{key}_q90"]].to_numpy(dtype=float)
-        kw_mid = float(np.median(kw[:, 0]))
+        if key in plan_kw.columns or f"{key}_mean" in plan_kw.columns:
+            kw = plan_kw[[f"{key}_mean", f"{key}_q10", f"{key}_q90"]].to_numpy(dtype=float)
+            kw_mean, kw_range = (
+                f"{float(np.median(kw[:, 0])):,.4g}",
+                (f"[{np.median(kw[:, 1]):,.4g}, {np.median(kw[:, 2]):,.4g}]"),
+            )
+        else:
+            kw_mean, kw_range = "--", "--"
         rng_rows.append(
             {
                 "quantity": name,
                 "unit": unit,
                 "kind": agg_kind,
                 "mean": f"{mean:,.{prec}f}",
-                "range": f"[{lo:,.{prec}f}, {hi:,.{prec}f}]",
+                "range": f"[{lo:,.{prec}f}, {hi:,.{prec}f}]" if key not in ("p_top", "p_first") else "--",
                 "width": 100 * (hi - lo) / max(abs(mean), 1e-9),
-                "kw_mean": f"{kw_mid:,.4g}",
-                "kw_range": f"[{np.median(kw[:, 1]):,.4g}, {np.median(kw[:, 2]):,.4g}]",
+                "kw_mean": kw_mean,
+                "kw_range": kw_range,
             }
         )
     write_table(
@@ -569,8 +669,8 @@ def build_tables(ctx: StageContext) -> dict[str, Any]:
             ("mean", "7 日期望", "s"),
             ("range", "10\\%--90\\% 范围", "s"),
             ("width", "相对宽度/\\%", ".0f"),
-            ("kw_mean", "单词--日期望", "s"),
-            ("kw_range", "单词--日范围", "s"),
+            ("kw_mean", "单关键词--日 期望中位数", "s"),
+            ("kw_range", "单关键词--日 区间中位数", "s"),
         ],
         align="llllrrrr",
     )

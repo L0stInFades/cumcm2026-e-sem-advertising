@@ -296,3 +296,166 @@ def attribution_model(
         "attributed_regs_raw": {u: float((Xu[:, i] * r_units[u]).sum()) for i, u in enumerate(units)},
         "baseline_regs": float(beta[0] * n),
     }
+
+
+def holiday_optimal_cut(
+    daily: pd.DataFrame,
+    terms: tuple[str, ...] = ("holiday", "wd_周一", "wd_周日"),
+    alt_elasticities: tuple[float, ...] = (),
+    n_draws: int = 400_000,
+    seed: int = 0,
+) -> dict[str, Any]:
+    """Sampling uncertainty of the marginal-return-equalising spend ratio exp(delta'/(1-theta)).
+
+    The optimal spend ratio on a day type with demand-side effect ``delta'`` relative to an ordinary
+    day follows from equalising the marginal registration return of the log-log response
+    R = K S^theta.  Both delta' and theta come from the same regression, so their joint sampling
+    distribution is propagated by drawing from the HC3 covariance of the two coefficients; the
+    critical elasticity ``theta_star`` at which the optimal cut equals the observed cut is reported
+    so that the reader can see whether the data can separate "over-cut" from "under-cut".
+    """
+    y = daily["regs"].astype(float)
+    mask = y.notna() & (y > 0) & (daily["spend"].astype(float) > 0)
+    X = _design(daily.loc[mask])
+    X["log_spend"] = np.log(daily.loc[mask, "spend"].astype(float))
+    fit = sm.OLS(np.log(y[mask]), X).fit(cov_type="HC3")
+    cols = list(X.columns)
+    j_theta = cols.index("log_spend")
+    cov = np.asarray(fit.cov_params())
+    rng = np.random.default_rng(seed)
+    theta = float(fit.params["log_spend"])
+    theta_se = float(fit.bse["log_spend"])
+    theta_ci = [float(v) for v in fit.conf_int(alpha=0.05).loc["log_spend"]]
+    # observed spend cut per day type (same design, spend as the dependent variable)
+    spend_fit = sm.OLS(np.log(daily.loc[mask, "spend"].astype(float)), _design(daily.loc[mask])).fit(cov_type="HC3")
+    out: dict[str, Any] = {
+        "theta": theta,
+        "theta_se": theta_se,
+        "theta_ci": theta_ci,
+        "n": int(mask.sum()),
+        "terms": {},
+    }
+
+    def cut(delta: np.ndarray | float, th: np.ndarray | float) -> np.ndarray:
+        return 1.0 - np.exp(np.asarray(delta, dtype=float) / np.maximum(1.0 - np.asarray(th, dtype=float), 1e-6))
+
+    for term in terms:
+        if term not in cols:
+            continue
+        j = cols.index(term)
+        delta = float(fit.params[term])
+        sub = cov[np.ix_([j, j_theta], [j, j_theta])]
+        draws = rng.multivariate_normal([delta, theta], sub, size=n_draws)
+        keep = draws[:, 1] < 0.999  # the ratio is undefined at unit elasticity
+        cuts = cut(draws[keep, 0], draws[keep, 1])
+        actual = float(1.0 - np.exp(float(spend_fit.params[term])))
+        # elasticity at which the optimal cut equals the observed cut: delta / log(1 - actual) = 1 - theta
+        theta_star = float(1.0 - delta / np.log(max(1.0 - actual, 1e-9))) if actual > 0 else np.nan
+        out["terms"][term] = {
+            "delta": delta,
+            "delta_se": float(fit.bse[term]),
+            "delta_ci": [float(v) for v in fit.conf_int(alpha=0.05).loc[term]],
+            "delta_p": float(fit.pvalues[term]),
+            "cut": float(cut(delta, theta)),
+            "cut_ci": [float(np.quantile(cuts, 0.025)), float(np.quantile(cuts, 0.975))],
+            "cut_at_theta_lo": float(cut(delta, theta_ci[0])),
+            "cut_at_theta_hi": float(cut(delta, theta_ci[1])),
+            "actual_cut": actual,
+            "actual_cut_p": float(spend_fit.pvalues[term]),
+            "theta_star": theta_star,
+            "theta_star_inside_ci": bool(theta_ci[0] <= theta_star <= theta_ci[1])
+            if np.isfinite(theta_star)
+            else False,
+            "prob_optimal_deeper_than_actual": float(np.mean(cuts > actual)),
+            "cut_at_alt": {f"{g:.4f}": float(cut(delta, g)) for g in alt_elasticities},
+        }
+    return out
+
+
+def attribution_diagnostics(
+    clicks: pd.DataFrame,
+    daily: pd.DataFrame,
+    attribution: dict[str, Any],
+    n_boot: int = 300,
+    seed: int = 0,
+) -> dict[str, Any]:
+    """Bootstrap intervals, boundary flags, collinearity and an additive decomposition of registrations.
+
+    The unit registration rates enter every downstream objective, so their sampling uncertainty and
+    their dependence on the calendar controls must be reported: a moving-block bootstrap of the
+    residuals gives intervals, refitting without the month dummies gives a specification swing, and
+    the residualised design matrix gives the condition number of the click block.
+    """
+    y = daily["regs"].to_numpy(dtype=float)
+    cal = _design(daily).drop(columns=["const"])
+    units = [int(u) for u in clicks.columns]
+    lam = float(attribution["lambda"])
+    raw = clicks.to_numpy(dtype=float)
+    Xu = raw.copy()
+    for t in range(1, len(Xu)):
+        Xu[t] += lam * Xu[t - 1]
+    calm = cal.to_numpy(dtype=float)
+
+    def fit(Xc: np.ndarray, yy: np.ndarray, xu: np.ndarray) -> np.ndarray:
+        X = np.column_stack([np.ones(len(yy)), xu, Xc])
+        lo = np.concatenate([[0.0], np.zeros(xu.shape[1]), np.full(Xc.shape[1], -np.inf)])
+        return lsq_linear(X, yy, bounds=(lo, np.full(X.shape[1], np.inf)), lsmr_tol="auto").x
+
+    beta = fit(calm, y, Xu)
+    fitted = np.column_stack([np.ones(len(y)), Xu, calm]) @ beta
+    resid = y - fitted
+    # moving-block bootstrap (block length 7) preserves the weekly dependence of the residuals
+    rng = np.random.default_rng(seed)
+    block, n = 7, len(y)
+    n_blocks = int(np.ceil(n / block))
+    draws = np.zeros((n_boot, len(units)))
+    for b in range(n_boot):
+        starts = rng.integers(0, n - block + 1, size=n_blocks)
+        e = np.concatenate([resid[s : s + block] for s in starts])[:n]
+        draws[b] = fit(calm, fitted + e, Xu)[1 : 1 + len(units)]
+    # specification robustness: drop the month dummies
+    month_cols = [i for i, c in enumerate(cal.columns) if c.startswith("month_")]
+    keep = [i for i in range(calm.shape[1]) if i not in month_cols]
+    beta_nm = fit(calm[:, keep], y, Xu)
+    # collinearity of the click block after residualising on the calendar design
+    Z = np.column_stack([np.ones(n), calm])
+    resid_clicks = Xu - Z @ np.linalg.lstsq(Z, Xu, rcond=None)[0]
+    sv = np.linalg.svd(resid_clicks, compute_uv=False)
+    rows = []
+    for i, u in enumerate(units):
+        r_raw = float(beta[1 + i])
+        rows.append(
+            {
+                "推广单元ID": u,
+                "rate_raw": r_raw,
+                "rate_used": float(attribution["rates"][u]),
+                "rate_source": attribution["rate_source"][u],
+                "at_zero_bound": bool(r_raw <= 1e-9),
+                "boot_low": float(np.quantile(draws[:, i], 0.025)),
+                "boot_high": float(np.quantile(draws[:, i], 0.975)),
+                "boot_sd": float(np.std(draws[:, i])),
+                "boot_share_at_zero": float(np.mean(draws[:, i] <= 1e-9)),
+                "rate_no_month": float(beta_nm[1 + i]),
+                "swing_ratio": float(beta_nm[1 + i] / r_raw) if r_raw > 1e-9 else np.nan,
+                "total_clicks": float(clicks.iloc[:, i].sum()),
+            }
+        )
+    table = pd.DataFrame(rows)
+    cal_terms = beta[1 + len(units) :]
+    decomposition = {
+        "total_regs": float(y.sum()),
+        "intercept": float(beta[0] * n),
+        "sem": float(sum(Xu[:, i].sum() * beta[1 + i] for i in range(len(units)))),
+        "calendar": float(sum(calm[:, j].sum() * cal_terms[j] for j in range(calm.shape[1]))),
+        "residual": float(resid.sum()),
+    }
+    decomposition["implied_non_sem_per_day"] = (decomposition["intercept"] + decomposition["calendar"]) / n
+    return {
+        "table": table,
+        "n_boot": n_boot,
+        "n_at_zero_bound": int(table["at_zero_bound"].sum()),
+        "max_swing_ratio": float(np.nanmax(np.abs(np.log(table["swing_ratio"].to_numpy(dtype=float))))),
+        "condition_number": float(sv[0] / max(sv[-1], 1e-12)),
+        "min_singular_value": float(sv[-1]),
+        "decomposition": decomposition,
+    }

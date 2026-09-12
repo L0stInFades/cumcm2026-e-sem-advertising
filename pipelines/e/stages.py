@@ -106,6 +106,12 @@ def eda(ctx: StageContext) -> dict[str, Any]:
     ctx.write_json("attribution.json", attribution)
     units = resp.unit_response_table(ud)
     _save(ctx, units, "unit_response")
+    pooled_g = float(units["pooled_gamma"].iloc[0])
+    cut = eda_mod.holiday_optimal_cut(daily, alt_elasticities=(pooled_g,), seed=ctx.seed("optimal-cut"))
+    ctx.write_json("optimal_cut.json", cut)
+    diag = eda_mod.attribution_diagnostics(unit_click_matrix(s1), daily, attribution, seed=ctx.seed("attribution-boot"))
+    _save(ctx, diag.pop("table"), "attribution_rates")
+    ctx.write_json("attribution_diagnostics.json", diag)
 
     total_spend = float(s1["消费额"].sum())
     total_clicks, total_imp = int(s1["点击量"].sum()), int(s1["展现量"].sum())
@@ -233,6 +239,70 @@ def eda(ctx: StageContext) -> dict[str, Any]:
     ctx.number("UnitsWithOwnGamma", int((units["gamma_source"] == "unit").sum()))
     ctx.number("MinUnitGammaRsq", float(units["r2"].min()), ".2f")
     ctx.number("MaxUnitGammaRsq", float(units["r2"].max()), ".2f")
+    # raw regression estimates (the adopted values are a subset; one unit estimates gamma > 1)
+    gh = units["gamma_hat"].to_numpy(dtype=float)
+    se = units["gamma_se"].to_numpy(dtype=float)
+    ctx.number("MinUnitGammaHat", float(np.nanmin(gh)), ".4f")
+    ctx.number("MaxUnitGammaHat", float(np.nanmax(gh)), ".4f")
+    below = (gh < 1) & (gh + 1.96 * se < 1)
+    ctx.number("UnitsGammaHatBelowOne", int(np.nansum(below)))
+    ctx.number("UnitsGammaHatAboveOne", int(np.nansum((gh > 1) & (gh - 1.96 * se > 1))))
+    hi_row = units.iloc[int(np.nanargmax(gh))]
+    ctx.number("GammaAboveOneUnitId", int(hi_row["推广单元ID"]))
+    ctx.number("GammaAboveOneHat", float(hi_row["gamma_hat"]), ".4f")
+    ctx.number("GammaAboveOneSe", float(hi_row["gamma_se"]), ".4f")
+    ctx.number("GammaAboveOneT", float((hi_row["gamma_hat"] - 1.0) / max(hi_row["gamma_se"], 1e-9)), ".2f")
+    ctx.number("GammaAboveOneActiveDays", int(hi_row["active_days"]))
+    short = units[(units["gamma_source"] == "pooled") & (units["推广单元ID"] != hi_row["推广单元ID"])]
+    if len(short):
+        ctx.number("GammaShortUnitId", int(short.iloc[0]["推广单元ID"]))
+        ctx.number("GammaShortActiveDays", int(short.iloc[0]["active_days"]))
+        ctx.number("GammaShortHat", float(short.iloc[0]["gamma_hat"]), ".4f")
+        ctx.number("GammaShortDays", int(short.iloc[0]["n_days"]))
+    ctx.number("GammaMinActiveDays", int(units["active_days"].min()))
+    ctx.number("MinPninefiveSpendRatio", float(units["p95_spend_ratio"].min()), ".2f")
+    ctx.number("MaxPninefiveSpendRatio", float(units["p95_spend_ratio"].max()), ".2f")
+    ctx.number("MedianPninefiveSpendRatio", float(units["p95_spend_ratio"].median()), ".2f")
+    # marginal-return equalisation: sampling uncertainty of the optimal day-type spend cut
+    for cut_term, key in (("holiday", "Holiday"), ("wd_周一", "Monday"), ("wd_周日", "Sunday")):
+        t = cut["terms"].get(cut_term)
+        if not t:
+            continue
+        ctx.number(f"{key}OptimalCutPct", 100 * t["cut"], ".1f")
+        ctx.number(f"{key}OptimalCutCiLowPct", 100 * t["cut_ci"][0], ".1f")
+        ctx.number(f"{key}OptimalCutCiHighPct", 100 * t["cut_ci"][1], ".1f")
+        ctx.number(f"{key}ActualCutPct", 100 * t["actual_cut"], ".1f")
+        ctx.number(f"{key}ThetaStar", t["theta_star"], ".4f")
+        ctx.number(f"{key}ProbOptimalDeeperPct", 100 * t["prob_optimal_deeper_than_actual"], ".0f")
+        ctx.number(f"{key}CutAtPooledGammaPct", 100 * list(t["cut_at_alt"].values())[0], ".1f")
+        ctx.number(f"{key}DemandDeltaCiLowPct", 100 * (np.exp(t["delta_ci"][0]) - 1), ".2f")
+        ctx.number(f"{key}DemandDeltaCiHighPct", 100 * (np.exp(t["delta_ci"][1]) - 1), ".2f")
+    ctx.number("ThetaCiLow", cut["theta_ci"][0], ".4f")
+    ctx.number("ThetaCiHigh", cut["theta_ci"][1], ".4f")
+    ctx.number("HolidayThetaStarInsideCi", int(cut["terms"]["holiday"]["theta_star_inside_ci"]))
+    # log-scale decomposition of the holiday drop (percentage points are not additive)
+    dh = float(np.log1p(term("regs", "holiday")["effect_pct"] / 100))
+    dd = float(np.log1p(float(ctrl["effect_pct"]) / 100))
+    ctx.number("HolidayDemandLogSharePct", 100 * dd / dh, ".0f")
+    ctx.number("HolidaySupplyLogSharePct", 100 * (1 - dd / dh), ".0f")
+    # attribution diagnostics
+    ctx.number("AttributionZeroBoundUnits", diag["n_at_zero_bound"])
+    ctx.number("AttributionConditionNumber", diag["condition_number"], ".3g")
+    ctx.number("AttributionMaxSwingRatio", float(np.exp(diag["max_swing_ratio"])), ".1f")
+    ctx.number("AttributionBoot", diag["n_boot"])
+    dec = diag["decomposition"]
+    ctx.number("DecompInterceptRegs", dec["intercept"], ",.0f")
+    ctx.number("DecompInterceptPct", 100 * dec["intercept"] / dec["total_regs"], ".1f")
+    ctx.number("DecompCalendarRegs", dec["calendar"], ",.0f")
+    ctx.number("DecompCalendarPct", 100 * dec["calendar"] / dec["total_regs"], ".1f")
+    ctx.number("DecompSemRegs", dec["sem"], ",.0f")
+    ctx.number("DecompSemPct", 100 * dec["sem"] / dec["total_regs"], ".1f")
+    ctx.number("DecompNonSemPerDay", dec["implied_non_sem_per_day"], ".1f")
+    ctx.number("OtherRegionClickSharePct", 100 * other_clicks / total_clicks, ".2f")
+    ctx.number("OtherRegionImpSharePct", 100 * (total_imp - top_imp) / total_imp, ".2f")
+    ctx.number(
+        "TopOverOtherCtrRatio", (s1["上方位点击量"].sum() / top_imp) / (other_clicks / (total_imp - top_imp)), ".1f"
+    )
     return {
         "unit_days": len(s1),
         "holiday_reg_effect_pct": float(term("regs", "holiday")["effect_pct"]),
@@ -304,6 +374,31 @@ def classify(ctx: StageContext) -> dict[str, Any]:
     ctx.number("EntropyEqualSpearman", result["agreement"]["entropy_vs_equal_spearman"], ".4f")
     ctx.number("MedianCostThresholdYuan", result["thresholds"]["median"]["cost_yuan"], ".2f")
     ctx.number("GmmCostThresholdYuan", result["thresholds"]["gmm"]["cost_yuan"], ".2f")
+    # how independent are the two axes, and what does an efficiency axis give instead
+    axis = cls.axis_diagnostics(table, thr, main, seed)
+    eff_labels = axis.pop("efficiency_labels")
+    table_out = table.assign(label_efficiency=eff_labels)
+    _save(ctx, table_out[["序号", "label", "label_efficiency"]], "classification_dual_axis")
+    ctx.write_json("axis_diagnostics.json", axis)
+    ctx.number("AxisPearson", axis["pearson_logcost_benefit"], ".4f")
+    ctx.number("AxisPearsonRsq", axis["r2_logcost_benefit"], ".3f")
+    ctx.number("AxisSpearman", axis["spearman_logcost_benefit"], ".4f")
+    ctx.number("AxisSpearmanClicks", axis["spearman_clicks_benefit"], ".4f")
+    ctx.number("AxisSpearmanEfficiency", axis["spearman_logcost_efficiency"], ".4f")
+    ctx.number("AxisEfficiencyAgreementPct", 100 * axis["efficiency_agreement"], ".2f")
+    for label, key in keys.items():
+        ctx.number(f"{key}ClickSharePct", 100 * axis["label_shares"][label]["click_share"], ".4f")
+        ctx.number(f"Eff{key}Count", int(axis["efficiency_counts"][label]))
+    ctx.number("GoldSpendSharePctFine", 100 * axis["label_shares"]["黄金词"]["spend_share"], ".4f")
+    # engagement-component robustness: total dwell time C_i tau_i instead of non-bounced dwell time
+    alt_kw = kw.assign(engagement=(kw["clicks"] * kw["duration_s"].fillna(0.0)).clip(lower=0.0))
+    alt = cls.classify_keywords(alt_kw, _rates(ctx), (main,), main, seed)
+    alt_agree = float((alt["table"]["label"].to_numpy() == table["label"].to_numpy()).mean())
+    ctx.write_json(
+        "engagement_variant.json",
+        {"agreement": alt_agree, "counts": alt["counts"][main], "weights": alt["weights"]},
+    )
+    ctx.number("EngagementVariantAgreementPct", 100 * alt_agree, ".2f")
     return {"counts": result["counts"][main], "checker_ok": report["ok"], "thresholds": thr}
 
 
@@ -421,14 +516,18 @@ def _sensitivity(
     scenarios: list[tuple[str, dict[str, Any]]] = [
         ("基准", {}),
         ("上限倍数 2", {"cap": 2.0}),
-        ("上限倍数 8", {"cap": 8.0}),
+        ("上限倍数 8", {"cap": 8.0, "relaxation": True}),
         ("弹性 gamma x0.9", {"gamma_scale": 0.9}),
         ("弹性 gamma x1.1", {"gamma_scale": 1.1}),
         ("预算 −20%", {"budget_scale": 0.8}),
         ("预算 +20%", {"budget_scale": 1.2}),
         ("剔除问题词", {"exclude_problem": True}),
-        ("问题词不降上限", {"problem_cap": 1.0}),
-        ("最小投放 0", {"min_spend": 0.0}),
+        ("问题词不降上限", {"problem_cap": 1.0, "relaxation": True}),
+        ("最小投放 0（上限同基准）", {"min_spend": 0.0, "caps_as_baseline": True, "relaxation": True}),
+        ("最小投放 0（上限随之收缩）", {"min_spend": 0.0}),
+        ("跳出率因子 kappa≡1", {"kappa": "one"}),
+        ("kappa 截断 [0.5, 2]", {"kappa": (0.5, 2.0)}),
+        ("重复词只留最优副本", {"dup_best": True}),
     ]
     rows = []
     for name, opt in scenarios:
@@ -444,17 +543,27 @@ def _sensitivity(
                     p = p[p["label"] != "问题词"]
                     if p.empty:
                         p = g["p"]
+                if opt.get("dup_best"):
+                    p = p[p["dup_best"]]
+                    if p.empty:
+                        p = g["p"]
                 p = p.assign(cap_factor=np.where(p["label"] == "问题词", opt.get("problem_cap", problem_cap), 1.0))
-                w = (p["rho"] * p["c"]).to_numpy(dtype=float)
+                w = _weights(p, opt.get("kappa"))
                 s = p["s"].to_numpy(dtype=float)
                 caps = _caps(p, budget, opt.get("cap", cap_mult))
+                if opt.get("caps_as_baseline"):
+                    # a nominal relaxation of the floor must not shrink the feasible set: the caps are
+                    # held at the effective caps of the baseline problem, max(cap_i, m)
+                    caps = np.maximum(caps, min_spend)
                 r = alloc.solve_group(w, s, gamma, caps, budget, min_spend=opt.get("min_spend", min_spend))
                 opt_total += g["eff"] * r["objective"]
                 selected.append(r["n_selected"])
                 p_all = elig[elig["推广单元ID"] == unit]
+                if opt.get("dup_best"):  # the baseline is rebuilt under the same rule to stay comparable
+                    p_all = p_all[p_all["dup_best"]]
                 xb = alloc.proportional_allocation(p_all["s"].to_numpy(dtype=float), budget)
                 prop_total += g["eff"] * float(
-                    np.sum((p_all["rho"] * p_all["c"]).to_numpy() * np.power(xb / p_all["s"].to_numpy(), gamma))
+                    np.sum(_weights(p_all, opt.get("kappa")) * np.power(xb / p_all["s"].to_numpy(), gamma))
                 )
             rows.append(
                 {
@@ -464,9 +573,101 @@ def _sensitivity(
                     "prop_regs": prop_total,
                     "gain": 100 * (opt_total / max(prop_total, 1e-9) - 1),
                     "selected": float(np.mean(selected)) if selected else 0.0,
+                    "relaxation": bool(opt.get("relaxation", False)),
                 }
             )
     return pd.DataFrame(rows)
+
+
+def _weights(p: pd.DataFrame, kappa: Any = None) -> np.ndarray:
+    """Objective coefficients rho_i c_i, optionally with the bounce-quality factor switched off or re-clipped."""
+    c = p["c"].to_numpy(dtype=float)
+    if kappa is None:
+        return (p["rho"] * p["c"]).to_numpy(dtype=float)
+    rate = p["rate"].to_numpy(dtype=float)
+    if kappa == "one":
+        return rate * c
+    lo, hi = kappa
+    return rate * np.clip(p["kappa"].to_numpy(dtype=float), lo, hi) * c
+
+
+def _cross_unit_allocation(
+    values: dict[int, tuple[float, float, float]], budget: float, cap_mult: float, tol: float = 1e-12
+) -> dict[int, float]:
+    """Marginal-return equalisation across units with heterogeneous elasticities.
+
+    ``values`` maps a unit to (K_u, gamma_u, B_u) where V_u(X) = K_u X^{gamma_u} is the unit's value
+    function calibrated at its own historical budget B_u.  Every unit takes
+    X_u(lambda) = (gamma_u K_u / lambda)^{1/(1 - gamma_u)} clipped to [0, cap_mult * B_u]; the total is
+    strictly decreasing in lambda, so the budget price is found by bisection.  This is the outer
+    problem that Section 4.2 points at (moving money between units), solved with the same machinery as
+    the keyword problem but with a unit-specific exponent.
+    """
+    units = sorted(values)
+    caps = {u: max(cap_mult * values[u][2], 1e-9) for u in units}
+
+    def total(lam: float) -> dict[int, float]:
+        out = {}
+        for u in units:
+            k, g, _ = values[u]
+            if k <= 0 or lam <= 0:
+                out[u] = 0.0
+                continue
+            log_x = (np.log(g * k) - np.log(lam)) / (1.0 - g)  # in logs: the price sweep spans 600 decades
+            x = float(np.exp(min(log_x, 700.0)))
+            out[u] = float(min(max(x, 0.0), caps[u]))
+        return out
+
+    if sum(caps.values()) <= budget:
+        return caps
+    lo, hi = 1e-300, 1.0
+    while sum(total(hi).values()) > budget:
+        hi *= 4.0
+    for _ in range(400):
+        mid = float(np.sqrt(lo * hi))
+        if sum(total(mid).values()) > budget:
+            lo = mid
+        else:
+            hi = mid
+        if hi / lo - 1.0 < tol:
+            break
+    return total(float(np.sqrt(lo * hi)))
+
+
+def _plan_window_for_units(
+    elig: pd.DataFrame,
+    unit_index: pd.DataFrame,
+    day_eff: dict[int, dict[str, Any]],
+    dates: pd.DatetimeIndex,
+    budgets: dict[int, float],
+    pos: dict[int, dict[str, Any]],
+    cap_mult: float,
+    min_spend: float,
+) -> pd.DataFrame:
+    """Two-level plan (day split then keyword split) for a window under an arbitrary per-unit budget."""
+    frames = []
+    for unit in sorted(budgets):
+        B = float(budgets[unit])
+        p = elig[(elig["推广单元ID"] == unit) & elig["eligible"]]
+        if B <= 0 or p.empty or unit not in day_eff:
+            continue
+        gamma = float(unit_index.loc[unit, "gamma"])
+        eff = np.asarray(day_eff[unit]["eff"], dtype=float)
+        day_cap = float(max(2.0 * B / len(dates), min_spend))
+        X = alloc.solve_group(eff, np.ones(len(dates)), gamma, np.full(len(dates), day_cap), B, min_spend=min_spend)[
+            "x"
+        ]
+        for i, d in enumerate(dates):
+            if X[i] <= 0:
+                continue
+            w = (p["rho"] * p["c"]).to_numpy(dtype=float)
+            sv = p["s"].to_numpy(dtype=float)
+            caps = _caps(p, float(X[i]), cap_mult)
+            x = alloc.solve_group(w, sv, gamma, caps, float(X[i]), min_spend=min_spend)["x"]
+            ev = _evaluate(x, p, gamma, float(eff[i]), pos[unit])
+            ev.insert(0, "date", d.strftime("%Y-%m-%d"))
+            frames.append(ev[ev["spend"] > 0])
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
 @stage(
@@ -491,9 +692,12 @@ def allocate(ctx: StageContext) -> dict[str, Any]:
     eligible_tables = []
     all_groups: dict[str, dict[tuple[int, pd.Timestamp], dict[str, Any]]] = {}
     elig_by_window: dict[str, pd.DataFrame] = {}
+    day_eff_by_window: dict[str, dict[int, dict[str, Any]]] = {}
+    dates_by_window: dict[str, pd.DatetimeIndex] = {}
     for window, (start, end) in Q3_WINDOWS.items():
         dates = pd.date_range(start, end, freq="D")
         day_eff = _day_efficiency(ud, units, dates)
+        day_eff_by_window[window], dates_by_window[window] = day_eff, dates
         actual = s1[(s1["日期"] >= start) & (s1["日期"] <= end) & (s1["消费额"] > 0)]
         active_units = {int(u) for u in actual["推广单元ID"].unique()}
         elig = _eligible(params, active_units, problem_cap)
@@ -627,6 +831,142 @@ def allocate(ctx: StageContext) -> dict[str, Any]:
     _save(ctx, boot, "bootstrap")
     alt = pd.DataFrame(window_alt)
     _save(ctx, alt, "window_budget_alternative")
+
+    # --- monotonicity of the sensitivity design: a nominally looser problem cannot be worse
+    base_by_window = sens[sens["scenario"] == "基准"].set_index("window")["opt_regs"]
+    mono = [
+        {
+            "scenario": r["scenario"],
+            "window": r["window"],
+            "opt_regs": float(r["opt_regs"]),
+            "baseline": float(base_by_window[r["window"]]),
+            "ok": bool(r["opt_regs"] >= base_by_window[r["window"]] * (1 - 1e-9)),
+        }
+        for _, r in sens[sens["relaxation"]].iterrows()
+    ]
+    ctx.write_json("sensitivity_monotonicity.json", {"ok": all(m["ok"] for m in mono), "cases": mono})
+    if not all(m["ok"] for m in mono):
+        raise RuntimeError(f"relaxed sensitivity scenario below the baseline optimum: {mono}")
+
+    # --- cross-unit reallocation counterfactual (the outer problem Q1 points at)
+    cross_rows = []
+    for window, groups in all_groups.items():
+        for date in sorted({d for _u, d in groups}):
+            day_groups = {u: g for (u, d), g in groups.items() if d == date}
+            if len(day_groups) < 2:
+                continue
+            budget = float(sum(g["budget"] for g in day_groups.values()))
+            vals = {}
+            for u, g in day_groups.items():
+                v = (
+                    g["eff"]
+                    * alloc.solve_group(
+                        (g["p"]["rho"] * g["p"]["c"]).to_numpy(dtype=float),
+                        g["p"]["s"].to_numpy(dtype=float),
+                        g["gamma"],
+                        g["caps"],
+                        g["budget"],
+                        min_spend=min_spend,
+                    )["objective"]
+                )
+                vals[u] = (v / max(g["budget"] ** g["gamma"], 1e-12), g["gamma"], g["budget"])
+            split = _cross_unit_allocation(vals, budget, cap_mult)
+            base_total = cross_total = 0.0
+            for u, g in day_groups.items():
+                base_total += (
+                    g["eff"]
+                    * alloc.solve_group(
+                        (g["p"]["rho"] * g["p"]["c"]).to_numpy(dtype=float),
+                        g["p"]["s"].to_numpy(dtype=float),
+                        g["gamma"],
+                        g["caps"],
+                        g["budget"],
+                        min_spend=min_spend,
+                    )["objective"]
+                )
+                Xu = float(split[u])
+                if Xu <= 0:
+                    continue
+                cross_total += (
+                    g["eff"]
+                    * alloc.solve_group(
+                        (g["p"]["rho"] * g["p"]["c"]).to_numpy(dtype=float),
+                        g["p"]["s"].to_numpy(dtype=float),
+                        g["gamma"],
+                        _caps(g["p"], Xu, cap_mult),
+                        Xu,
+                        min_spend=min_spend,
+                    )["objective"]
+                )
+            cross_rows.append(
+                {
+                    "window": window,
+                    "date": date.strftime("%Y-%m-%d"),
+                    "units": len(day_groups),
+                    "budget": budget,
+                    "within_unit_regs": base_total,
+                    "cross_unit_regs": cross_total,
+                    "gain_pct": 100 * (cross_total / max(base_total, 1e-9) - 1),
+                }
+            )
+    cross = pd.DataFrame(cross_rows)
+    _save(ctx, cross, "cross_unit_counterfactual")
+
+    # --- February window under the annual-average budget reading: a plan for every unit
+    all_units = {int(u) for u in units["推广单元ID"]}
+    elig_all = _eligible(params, all_units, problem_cap)
+    annual = ud.groupby("推广单元ID")["消费额"].sum()
+    feb_dates = dates_by_window["feb"]
+    feb_budgets = {int(u): float(annual.get(u, 0.0)) / 365.0 * len(feb_dates) for u in all_units}
+    feb_all = _plan_window_for_units(
+        elig_all, unit_index, day_eff_by_window["feb"], feb_dates, feb_budgets, pos, cap_mult, min_spend
+    )
+    if len(feb_all):
+        feb_all["window"] = "feb_annual_avg"
+        _save(ctx, feb_all, "plan_feb_annual_avg")
+
+    # --- cross-unit duplication exposure of the delivered plan
+    dup_ids = set(params.loc[params["shared_units"] > 1, "关键词"].unique())
+    dup_mask = allocation["关键词"].isin(dup_ids)
+    dup_day = allocation[dup_mask].groupby(["date", "关键词"])["推广单元ID"].nunique()
+    dup_keys = {k for k, v in dup_day.items() if v > 1}
+    exposed = allocation[[(d, k) in dup_keys for d, k in zip(allocation["date"], allocation["关键词"])]]
+    ctx.write_json(
+        "duplication_exposure.json",
+        {
+            "keyword_days": len(dup_keys),
+            "rows": len(exposed),
+            "regs": float(exposed["regs"].sum()),
+            "regs_share": float(exposed["regs"].sum() / max(allocation["regs"].sum(), 1e-9)),
+            "spend": float(exposed["spend"].sum()),
+            "spend_share": float(exposed["spend"].sum() / max(allocation["spend"].sum(), 1e-9)),
+        },
+    )
+
+    # --- proportional baseline coordinates below the floor (the feasibility caveat of Section 6.2)
+    below = total_prop = 0
+    min_ratio = np.inf
+    for window, groups in all_groups.items():
+        elig = elig_by_window[window]
+        for (unit, _date), g in groups.items():
+            p_all = elig[elig["推广单元ID"] == unit]
+            xb = alloc.proportional_allocation(p_all["s"].to_numpy(dtype=float), g["budget"])
+            pos_xb = xb[xb > 0]
+            below += int((pos_xb < min_spend).sum())
+            total_prop += len(pos_xb)
+    ratios = summary["opt_regs"] / summary["prop_regs"].replace(0, np.nan)
+    min_ratio = float(ratios.min())
+    ctx.write_json(
+        "baseline_feasibility.json",
+        {
+            "proportional_positive_coordinates": total_prop,
+            "below_floor": below,
+            "below_floor_share": below / max(total_prop, 1),
+            "min_opt_over_prop_ratio": min_ratio,
+            "unit_days_with_opt_at_least_prop": int((ratios >= 1 - 1e-12).sum()),
+            "unit_days": len(ratios),
+        },
+    )
     ctx.write_json(
         "allocation_audit.json",
         {
@@ -648,6 +988,49 @@ def allocate(ctx: StageContext) -> dict[str, Any]:
     # response-model calibration check: proportional allocation at the actual budget should reproduce actual clicks
     calib = summary[["window", "推广单元ID", "actual_clicks", "prop_clicks"]].copy()
     calib["ape"] = np.abs(calib["prop_clicks"] - calib["actual_clicks"]) / np.maximum(calib["actual_clicks"], 1.0)
+    calib["signed"] = (calib["prop_clicks"] - calib["actual_clicks"]) / np.maximum(calib["actual_clicks"], 1.0)
+    # level-bias invariance: rescaling every c_i inside a unit-day by lambda = actual/baseline clicks
+    # multiplies both the optimal and the proportional objective by lambda, so the gain ratio is
+    # unchanged -- multiplicative unit-day miscalibration cannot drive the reported improvement
+    rescale_rows = []
+    for window, groups in all_groups.items():
+        elig = elig_by_window[window]
+        opt_r = prop_r = opt_o = prop_o = 0.0
+        for (unit, date), g in groups.items():
+            row = summary[
+                (summary["window"] == window)
+                & (summary["推广单元ID"] == unit)
+                & (summary["date"] == date.strftime("%Y-%m-%d"))
+            ].iloc[0]
+            lam = float(row["actual_clicks"]) / max(float(row["prop_clicks"]), 1e-9)
+            p_sel = g["p"]
+            p_all = elig[elig["推广单元ID"] == unit]
+            for scale, acc in ((1.0, "o"), (lam, "r")):
+                w = (p_sel["rho"] * p_sel["c"]).to_numpy(dtype=float) * scale
+                r = alloc.solve_group(
+                    w, p_sel["s"].to_numpy(dtype=float), g["gamma"], g["caps"], g["budget"], min_spend=min_spend
+                )
+                xb = alloc.proportional_allocation(p_all["s"].to_numpy(dtype=float), g["budget"])
+                pv = float(
+                    np.sum(
+                        (p_all["rho"] * p_all["c"]).to_numpy()
+                        * scale
+                        * np.power(xb / p_all["s"].to_numpy(), g["gamma"])
+                    )
+                )
+                if acc == "o":
+                    opt_o += g["eff"] * r["objective"]
+                    prop_o += g["eff"] * pv
+                else:
+                    opt_r += g["eff"] * r["objective"]
+                    prop_r += g["eff"] * pv
+        rescale_rows.append(
+            {
+                "window": window,
+                "gain_pct": 100 * (opt_o / max(prop_o, 1e-9) - 1),
+                "gain_pct_rescaled": 100 * (opt_r / max(prop_r, 1e-9) - 1),
+            }
+        )
     ctx.write_json(
         "calibration_check.json",
         {
@@ -655,6 +1038,16 @@ def allocate(ctx: StageContext) -> dict[str, Any]:
             "median_ape": float(calib["ape"].median()),
             "n": len(calib),
             "spend_weighted_mape": float(np.average(calib["ape"], weights=summary["budget"])),
+            "signed_bias_by_window": {
+                w: float(
+                    (calib.loc[calib["window"] == w, "prop_clicks"].sum())
+                    / max(calib.loc[calib["window"] == w, "actual_clicks"].sum(), 1.0)
+                    - 1
+                )
+                for w in calib["window"].unique()
+            },
+            "rescaling_invariance": rescale_rows,
+            "max_gain_shift_pp": float(max(abs(r["gain_pct"] - r["gain_pct_rescaled"]) for r in rescale_rows)),
         },
     )
     if not all(a["ok"] for a in audits):
@@ -736,6 +1129,80 @@ def allocate(ctx: StageContext) -> dict[str, Any]:
     ctx.number("QthreeRows", len(allocation))
     ctx.number("QthreeCapMultiplier", cap_mult, ".1f")
     ctx.number("QthreeMinSpend", min_spend, ".2f")
+    # empirical dominance over the baseline (the floor makes the a-priori feasibility argument invalid)
+    ratios = summary["opt_regs"] / summary["prop_regs"].replace(0, np.nan)
+    ctx.number("QthreeMinOptPropRatio", float(ratios.min()), ".4f")
+    ctx.number("QthreeUnitDaysOptAtLeastProp", int((ratios >= 1 - 1e-12).sum()))
+    prop_below = prop_pos = 0
+    for window, groups in all_groups.items():
+        elig_w = elig_by_window[window]
+        for (unit, _date), g in groups.items():
+            xb = alloc.proportional_allocation(
+                elig_w[elig_w["推广单元ID"] == unit]["s"].to_numpy(dtype=float), g["budget"]
+            )
+            xb = xb[xb > 0]
+            prop_below += int((xb < min_spend).sum())
+            prop_pos += len(xb)
+    ctx.number("QthreePropBelowFloor", prop_below, ",d")
+    ctx.number("QthreePropPositiveCoords", prop_pos, ",d")
+    ctx.number("QthreePropBelowFloorPct", 100 * prop_below / max(prop_pos, 1), ".1f")
+    # duplication exposure
+    dupj = ctx.read_json(ctx.stage_dir / "duplication_exposure.json")
+    ctx.number("QthreeDupKeywordDays", dupj["keyword_days"], ",d")
+    ctx.number("QthreeDupRegs", dupj["regs"], ",.2f")
+    ctx.number("QthreeDupRegsSharePct", 100 * dupj["regs_share"], ".2f")
+    ctx.number("QthreeDupSpend", dupj["spend"], ",.2f")
+    ctx.number("QthreeDupSpendSharePct", 100 * dupj["spend_share"], ".2f")
+    # calibration sign and invariance
+    calj = ctx.read_json(ctx.stage_dir / "calibration_check.json")
+    for window, key in (("feb", "Feb"), ("aug", "Aug")):
+        ctx.number(f"QthreeSignedBiasPct{key}", 100 * calj["signed_bias_by_window"][window], ".1f")
+    ctx.number("QthreeGainShiftPp", calj["max_gain_shift_pp"], ".2f")
+    for rec in calj["rescaling_invariance"]:
+        ctx.number(
+            "QthreeGainRescaledPct" + {"feb": "Feb", "aug": "Aug"}[rec["window"]], rec["gain_pct_rescaled"], ".2f"
+        )
+    ctx.number("QthreeSpendWeightedMape", 100 * calj["spend_weighted_mape"], ".1f")
+    # cross-unit reallocation counterfactual
+    for window, key in (("feb", "Feb"), ("aug", "Aug")):
+        cw = cross[cross["window"] == window]
+        if len(cw):
+            ctx.number(
+                f"QthreeCrossUnitGainPct{key}",
+                100 * (cw["cross_unit_regs"].sum() / max(cw["within_unit_regs"].sum(), 1e-9) - 1),
+                ".2f",
+            )
+            ctx.number(f"QthreeCrossUnitDays{key}", len(cw))
+    # February window under the annual-average budget reading
+    if len(feb_all):
+        ctx.number("QthreeFebAltRows", len(feb_all))
+        ctx.number("QthreeFebAltUnits", int(feb_all["推广单元ID"].nunique()))
+        ctx.number("QthreeFebAltBudget", float(feb_all["spend"].sum()), ",.2f")
+        ctx.number("QthreeFebAltRegs", float(feb_all["regs"].sum()), ".2f")
+        ctx.number("QthreeFebAltClicks", float(feb_all["clicks"].sum()), ",.1f")
+        ctx.number("QthreeFebAltKeywords", int(feb_all["序号"].nunique()))
+
+    # sensitivity read-outs quoted in the text
+    def sens_val(name: str, window: str, col: str = "gain") -> float:
+        sel = sens[(sens["scenario"] == name) & (sens["window"] == window)]
+        return float(sel[col].iloc[0]) if len(sel) else float("nan")
+
+    for window, key in (("2 月", "Feb"), ("8 月", "Aug")):
+        base_regs = sens_val("基准", window, "opt_regs")
+        free_regs = sens_val("最小投放 0（上限同基准）", window, "opt_regs")
+        ctx.number(f"QthreeFloorCostPct{key}", 100 * (free_regs / max(base_regs, 1e-9) - 1), ".3f")
+        ctx.number(f"QthreeSelectedBase{key}", sens_val("基准", window, "selected"), ".1f")
+        ctx.number(f"QthreeSelectedNoFloor{key}", sens_val("最小投放 0（上限同基准）", window, "selected"), ".1f")
+        ctx.number(f"QthreeKappaOneGainPct{key}", sens_val("跳出率因子 kappa≡1", window), ".2f")
+        ctx.number(f"QthreeKappaClipGainPct{key}", sens_val("kappa 截断 [0.5, 2]", window), ".2f")
+        ctx.number(f"QthreeDupBestGainPct{key}", sens_val("重复词只留最优副本", window), ".2f")
+    ctx.number("QthreeSensMinGainPct", float(sens["gain"].min()), ".1f")
+    ctx.number("QthreeSensMaxGainPct", float(sens["gain"].max()), ".1f")
+    ctx.number("QthreeSensScenarios", int(sens["scenario"].nunique()))
+    kap = params["kappa"].to_numpy(dtype=float)
+    ctx.number("KappaAtBoundPct", 100 * float(np.mean((kap <= 0.2501) | (kap >= 2.4999))), ".1f")
+    ctx.number("KappaMedian", float(np.median(kap)), ".4f")
+    ctx.number("KappaRows", len(kap), ",d")
     return {"rows": len(allocation), "audit_ok": True, "windows": win_tot.to_dict(orient="index")}
 
 
@@ -825,11 +1292,12 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
     )
     _save(ctx, budgets, "budgets")
     active_units = {int(u) for u, b in budget_main.items() if b > 0}
+    all_unit_ids = {int(u) for u in units["推广单元ID"]}
     elig = _eligible(params, active_units, problem_cap)
-    elig_all = _eligible(params, {int(u) for u in units["推广单元ID"]}, problem_cap)
+    elig_all = _eligible(params, all_unit_ids, problem_cap)
     _save(ctx, elig, "keyword_parameters")
 
-    rows, day_rows, audits, unit_rows = [], [], [], []
+    rows, day_rows, audits, unit_rows, joint_rows = [], [], [], [], []
     for unit in sorted(active_units):
         p = elig[(elig["推广单元ID"] == unit) & elig["eligible"]]
         if p.empty or unit not in unit_fc or "log_eff" not in unit_fc[unit]:
@@ -850,6 +1318,8 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
         f_cpc = unit_fc[unit]["log_cpc"]
         kw_sd = float(f_cpc["sd"])
         totals = {k: np.zeros(n_scen) for k in ("clicks", "imp", "views", "regs", "spend")}
+        det_objective = 0.0
+        s = p["s"].to_numpy(dtype=float)
         for i, d in enumerate(dates):
             if X[i] <= 0:
                 continue
@@ -907,9 +1377,14 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
             for k in ("clicks", "imp", "views", "regs"):
                 totals[k] += np.nansum(sim[k], axis=1)
             totals["spend"] += float(x.sum())
+            det_objective += float(eff_mean[i]) * float(
+                np.sum((p[sel]["rho"] * p[sel]["c"]).to_numpy(dtype=float) * np.power(x[sel] / s[sel], gamma))
+            )
             day_tot = {k: np.nansum(sim[k], axis=1) for k in ("clicks", "imp", "views", "regs")}
             day_cpc = float(x.sum()) / np.maximum(day_tot["clicks"], 1e-9)
             pos_w = np.nansum(sim["position"] * sim["clicks"], axis=1) / np.maximum(day_tot["clicks"], 1e-9)
+            ptop_w = np.nansum(sim["p_top"] * sim["clicks"], axis=1) / np.maximum(day_tot["clicks"], 1e-9)
+            pfirst_w = np.nansum(sim["p_first"] * sim["clicks"], axis=1) / np.maximum(day_tot["clicks"], 1e-9)
             day_rows.append(
                 {
                     "date": d.strftime("%Y-%m-%d"),
@@ -919,6 +1394,9 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
                     "spend": float(x.sum()),
                     "selected": int(sel.sum()),
                     "eff_mean": float(eff_mean[i]),
+                    "p_top_mean": float(ptop_w.mean()),
+                    "p_first_mean": float(pfirst_w.mean()),
+                    "cpc_scenario_mean": float(day_cpc.mean()),
                     **{
                         f"{k}_{q}": float(v)
                         for k, arr in day_tot.items()
@@ -941,6 +1419,27 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
                     },
                 }
             )
+        # joint (7 days x keywords) concave relaxation: no floor and the most generous caps, so its
+        # optimum bounds the true joint optimum from above and certifies the two-level decomposition
+        # the effective per-day box is max(cap_i, m) because the floor lifts caps below it, so the
+        # relaxation must use the same lift to contain every day's feasible set
+        caps_joint = np.maximum(_caps(p, B, cap_mult), min_spend)
+        a_joint = np.concatenate(
+            [
+                float(eff_mean[i]) * (p["rho"] * p["c"]).to_numpy(dtype=float) * np.power(s, -gamma)
+                for i in range(len(dates))
+            ]
+        )
+        x_joint = alloc.water_filling(a_joint, gamma, np.tile(caps_joint, len(dates)), B)
+        joint_bound = float(np.sum(a_joint * np.power(x_joint, gamma)))
+        joint_rows.append(
+            {
+                "推广单元ID": unit,
+                "two_level": det_objective,
+                "joint_bound": joint_bound,
+                "gap_pct": 100 * (joint_bound - det_objective) / max(det_objective, 1e-9),
+            }
+        )
         unit_rows.append(
             {
                 "推广单元ID": unit,
@@ -948,6 +1447,8 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
                 "spent": float(totals["spend"][0]),
                 "gamma": gamma,
                 "eligible": len(p),
+                "regs_scenario_sd": float(np.std(totals["regs"], ddof=1)),
+                "det_regs": det_objective,
                 "day_split": [float(v) for v in X],
                 **{
                     f"{k}_{q}": float(v)
@@ -958,11 +1459,12 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
             }
         )
     alt_expected: dict[str, float] = {}
+    alt_frames: list[pd.DataFrame] = []
     for name, budget_series in (("same_period", budget_main), ("annual_avg", budget_alt)):
         total_regs = 0.0
         for unit in sorted(int(u) for u, b in budget_series.items() if b > 0):
-            p = elig_all[(elig_all["推广单元ID"] == unit) & elig_all["eligible"]]
-            if p.empty or unit not in unit_fc or "log_eff" not in unit_fc[unit]:
+            pu = elig_all[(elig_all["推广单元ID"] == unit) & elig_all["eligible"]]
+            if pu.empty or unit not in unit_fc or "log_eff" not in unit_fc[unit]:
                 continue
             gamma = float(unit_index.loc[unit, "gamma"])
             f_eff = unit_fc[unit]["log_eff"]
@@ -976,15 +1478,51 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
             for i in range(len(dates)):
                 if X[i] <= 0:
                     continue
-                w = (p["rho"] * p["c"]).to_numpy(dtype=float) * float(eff_mean[i])
-                s = p["s"].to_numpy(dtype=float)
-                total_regs += alloc.solve_group(
-                    w, s, gamma, _caps(p, float(X[i]), cap_mult), float(X[i]), min_spend=min_spend
-                )["objective"]
+                w = (pu["rho"] * pu["c"]).to_numpy(dtype=float) * float(eff_mean[i])
+                sv = pu["s"].to_numpy(dtype=float)
+                res_alt = alloc.solve_group(
+                    w, sv, gamma, _caps(pu, float(X[i]), cap_mult), float(X[i]), min_spend=min_spend
+                )
+                total_regs += res_alt["objective"]
+                if name == "annual_avg":  # the recommended reading also gets a full day-by-day plan
+                    ev = _evaluate(res_alt["x"], pu, gamma, float(eff_mean[i]), pos[unit])
+                    ev.insert(0, "date", dates[i].strftime("%Y-%m-%d"))
+                    alt_frames.append(ev[ev["spend"] > 0])
         alt_expected[name] = total_regs
     ctx.write_json("budget_alternatives.json", alt_expected)
+    plan_alt = pd.concat(alt_frames, ignore_index=True) if alt_frames else pd.DataFrame()
+    if len(plan_alt):
+        _save(ctx, plan_alt, "plan_annual_alt")
+    joint = pd.DataFrame(joint_rows)
+    _save(ctx, joint, "joint_relaxation")
     plan = pd.DataFrame(rows)
     _save(ctx, plan, "plan")
+    # units the same-period budget reading leaves with no money still need a line in result4.xlsx:
+    # one zero row per day makes "no placement" explicit instead of silently dropping the unit
+    zero_rows = []
+    for unit in sorted(all_unit_ids - active_units):
+        pz = elig_all[(elig_all["推广单元ID"] == unit) & elig_all["eligible"]]
+        if pz.empty:
+            continue
+        best = pz.sort_values("efficiency", ascending=False).iloc[0]
+        for d in dates:
+            zero_rows.append(
+                {
+                    "date": d.strftime("%Y-%m-%d"),
+                    "方案ID": int(best["方案ID"]),
+                    "推广单元ID": unit,
+                    "关键词": int(best["关键词"]),
+                    "序号": int(best["序号"]),
+                    "spend": 0.0,
+                    "position_mean": 0.0,
+                    "clicks_mean": 0.0,
+                    "views_mean": 0.0,
+                    "regs_mean": 0.0,
+                }
+            )
+    zeros = pd.DataFrame(zero_rows)
+    if len(zeros):
+        _save(ctx, zeros, "plan_zero_rows")
     days = pd.DataFrame(day_rows)
     _save(ctx, days, "plan_by_unit_day")
     per_unit = pd.DataFrame(unit_rows)
@@ -998,6 +1536,7 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
         raise RuntimeError("Q4 allocation audit failed; see allocation_audit.json")
 
     cal = bt_summary[bt_summary["model"] == "calendar"].set_index("target")
+    wide = bt_summary[bt_summary["model"] == "calendar_wide"].set_index("target")
     sn = bt_summary[bt_summary["model"] == "seasonal_naive"].set_index("target")
     m28 = bt_summary[bt_summary["model"] == "mean28"].set_index("target")
     for target, key in (
@@ -1005,8 +1544,11 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
         ("log_cpc", "Cpc"),
         ("logit_ctr", "Ctr"),
         ("logit_top", "Top"),
+        ("logit_first", "First"),
         ("log_clicks", "Clicks"),
     ):
+        ctx.number(f"BacktestWideCoverage{key}", 100 * wide.loc[target, "coverage80"], ".2f")
+        ctx.number(f"BacktestWidePinball{key}", wide.loc[target, "pinball10"] + wide.loc[target, "pinball90"], ".4f")
         ctx.number(f"BacktestCalendarMae{key}", cal.loc[target, "mae"], ".4f")
         ctx.number(f"BacktestNaiveMae{key}", sn.loc[target, "mae"], ".4f")
         ctx.number(f"BacktestMeanMae{key}", m28.loc[target, "mae"], ".4f")
@@ -1061,6 +1603,54 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
         ctx.number(f"QfourPosition{key}", float(np.average(days[col], weights=pos_w)), ".4f")
     ctx.number("QfourScenarios", n_scen)
     ctx.number("QfourAuditGroups", len(audits))
+    # deployed interval width relative to the backtested residual-only width
+    infl = []
+    for unit, targets in unit_fc.items():
+        for target, f in targets.items():
+            if f["sd"] > 0:
+                infl.append(float(np.sqrt(f["sd"] ** 2 + f["month_sd"] ** 2) / f["sd"]))
+    ctx.number("QfourWidthInflationMedian", float(np.median(infl)), ".3f")
+    ctx.number("QfourWidthInflationMax", float(np.max(infl)), ".3f")
+    ctx.number("QfourWidthInflationMin", float(np.min(infl)), ".3f")
+    ctx.number("BacktestWideCoverageMin", 100 * float(wide["coverage80"].min()), ".1f")
+    ctx.number("BacktestWideCoverageMax", 100 * float(wide["coverage80"].max()), ".1f")
+    ctx.number("BacktestCalendarCoverageMin", 100 * float(cal["coverage80"].min()), ".1f")
+    ctx.number("BacktestCalendarCoverageMax", 100 * float(cal["coverage80"].max()), ".1f")
+    ctx.number("BacktestMeanCoverageMin", 100 * float(m28["coverage80"].min()), ".1f")
+    ctx.number("BacktestMeanCoverageMax", 100 * float(m28["coverage80"].max()), ".1f")
+    ctx.number("BacktestOrigins", int(backtest["origin"].nunique()))
+    ctx.number("BacktestUnits", int(backtest["推广单元ID"].nunique()))
+    # joint optimality certificate for the two-level decomposition
+    ctx.number("QfourJointGapPct", 100 * (joint["joint_bound"].sum() / joint["two_level"].sum() - 1), ".3f")
+    ctx.number("QfourJointMaxGapPct", float(joint["gap_pct"].max()), ".2f")
+    ctx.number("QfourJointUnits", len(joint))
+    worst = joint.loc[joint["gap_pct"].idxmax()]
+    ctx.number("QfourJointMaxGapUnit", int(worst["推广单元ID"]))
+    ctx.number("QfourJointMaxGapUnitRegs", float(worst["two_level"]), ".2f")
+    big = joint[joint["two_level"] >= 10]
+    ctx.number("QfourJointMaxGapBigPct", float(big["gap_pct"].max()), ".2f")
+    ctx.number("QfourJointBigUnits", len(big))
+    ctx.number("QfourDetRegs", float(joint["two_level"].sum()), ".1f")
+    # Monte Carlo precision of the reported expectation (independent unit draws)
+    mc_se = float(np.sqrt((per_unit["regs_scenario_sd"] ** 2).sum() / n_scen))
+    ctx.number("QfourRegsMcSe", mc_se, ".1f")
+    ctx.number("QfourRegsMcZ", abs(float(tot["regs_mean"]) - float(joint["two_level"].sum())) / max(mc_se, 1e-9), ".1f")
+    # position: the ranking index is a three-point mixture, so report the two shares behind it
+    ctx.number("QfourPtopPct", 100 * float(np.average(days["p_top_mean"], weights=pos_w)), ".1f")
+    ctx.number("QfourPfirstPct", 100 * float(np.average(days["p_first_mean"], weights=pos_w)), ".1f")
+    ctx.number("QfourPmidPct", 100 * float(np.average(days["p_top_mean"] - days["p_first_mean"], weights=pos_w)), ".1f")
+    ctx.number("QfourCpcScenarioMean", float(np.average(days["cpc_scenario_mean"], weights=pos_w)), ".4f")
+    # the recommended alternative budget reading, as a full day-by-day plan
+    if len(plan_alt):
+        ctx.number("QfourAltRows", len(plan_alt))
+        ctx.number("QfourAltUnits", int(plan_alt["推广单元ID"].nunique()))
+        ctx.number("QfourAltKeywords", int(plan_alt["序号"].nunique()))
+        ctx.number("QfourAltSpend", float(plan_alt["spend"].sum()), ",.2f")
+        ctx.number("QfourAltClicks", float(plan_alt["clicks"].sum()), ",.1f")
+        ctx.number("QfourAltRegs", float(plan_alt["regs"].sum()), ".1f")
+    ctx.number(
+        "QfourBudgetAltOverMainPct", 100 * (float(budgets["budget_annual_avg"].sum()) / tot["budget"] - 1), ".1f"
+    )
     ref_clicks = float(ud[(ud["日期"] >= Q4_REFERENCE[0]) & (ud["日期"] <= Q4_REFERENCE[1])]["点击量"].sum())
     ctx.number("QfourRefClicks", ref_clicks, ",.0f")
     ctx.number("QfourClickGainVsRefPct", 100 * (tot["clicks_mean"] / ref_clicks - 1), ".2f")
@@ -1106,6 +1696,9 @@ def results(ctx: StageContext) -> dict[str, Any]:
         {"Sheet1": (RESULT_HEADER, plan_rows(allocation, "clicks", "views", "regs", "position"))},
     )
     plan = pd.read_parquet(ctx.dep("forecast") / "plan.parquet")
+    zero_path = ctx.dep("forecast") / "plan_zero_rows.parquet"
+    if zero_path.exists():  # zero-budget units are reported explicitly so all 12 units appear
+        plan = pd.concat([plan, pd.read_parquet(zero_path)], ignore_index=True)
     info4 = xlsx.write_result(
         ctx.templates / "result4.xlsx",
         ctx.out("result4.xlsx"),
