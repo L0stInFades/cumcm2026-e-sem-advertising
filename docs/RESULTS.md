@@ -6,10 +6,10 @@
 
 | 阶段 | 内容 | 主要文件 |
 |---|---|---|
-| `eda` | 问题一：KPI、集中度、日历/假日回归、注册归因、弹性 | `unit_kpis.*`, `calendar_regression.*`, `calendar_regression_summary.json`, `attribution.json`, `attribution_fit.*`, `unit_response.*`, `concentration.json`, `lorenz.*`, `day_type_profile.*`, `daily_totals.*`, `unit_daily.*` |
-| `classify` | 问题二：五类分类 | `classification.*`（逐词），`classification_by_label.*`, `classification_per_unit.*`, `classification_summary.json`, `classification_check.json`（独立复核） |
-| `allocate` | 问题三：分配 | `allocation.*`（逐词逐日），`allocation_summary.*`（单元-日汇总），`allocation_audit.json`, `calibration_check.json`, `bootstrap.*`, `sensitivity.*`, `window_budget_alternative.*`, `keyword_parameters.*`, `position_models.json` |
-| `forecast` | 问题四：预测 + 随机分配 | `backtest.*`, `backtest_summary.*`, `unit_forecasts.*`, `budgets.*`, `plan.*`（逐词逐日，含均值与 10/50/90 分位），`plan_by_unit_day.*`, `plan_by_unit.json`, `allocation_audit.json` |
+| `eda` | 问题一：KPI、集中度、日历/假日回归、注册归因、弹性 | `unit_kpis.*`, `calendar_regression.*`, `calendar_regression_summary.json`, `attribution.json`, `attribution_fit.*`, `attribution_rates.*`（自助区间与边界标记）, `attribution_diagnostics.json`（共线性、设定摆动、三块分解）, `optimal_cut.json`（式 (5) 的联合不确定性）, `unit_response.*`, `concentration.json`, `lorenz.*`, `day_type_profile.*`, `daily_totals.*`, `unit_daily.*` |
+| `classify` | 问题二：五类分类 | `classification.*`（逐词），`classification_by_label.*`, `classification_per_unit.*`, `classification_dual_axis.*`, `classification_summary.json`, `axis_diagnostics.json`（两轴共线性与效率口径）, `engagement_variant.json`, `classification_check.json`（独立复核） |
+| `allocate` | 问题三：分配 | `allocation.*`（逐词逐日），`allocation_summary.*`（单元-日汇总），`allocation_audit.json`, `calibration_check.json`（含有符号偏差与重标定不变性）, `bootstrap.*`, `sensitivity.*`（14 情形，带 `relaxation` 标记）, `sensitivity_monotonicity.json`（单调性门禁）, `baseline_feasibility.json`, `duplication_exposure.json`, `cross_unit_counterfactual.*`, `plan_feb_annual_avg.*`（2 月窗口全 12 单元备选）, `window_budget_alternative.*`, `keyword_parameters.*`, `position_models.json` |
+| `forecast` | 问题四：预测 + 随机分配 | `backtest.*`（含 `calendar_wide` 部署区间）, `backtest_summary.*`, `unit_forecasts.*`, `budgets.*`, `budget_alternatives.json`, `plan.*`（逐词逐日，含均值与 10/50/90 分位）, `plan_zero_rows.*`（零预算单元）, `plan_annual_alt.*`（全年日均口径完整方案）, `plan_by_unit_day.*`（含 `p_top_mean`/`p_first_mean`/`cpc_scenario_mean`）, `plan_by_unit.json`, `joint_relaxation.*`（两层分解的联合上界）, `allocation_audit.json` |
 | `results` | result2/3/4.xlsx | 阶段目录根 |
 | `figures` | 论文图 | `figures/*.pdf` + `*.png` |
 | `tables` | 论文表 | `tables/*.tex` + `*.csv` |
@@ -19,6 +19,8 @@
 **方法一句话**：单元级漏斗 KPI 与关键词集中度刻画"创意质量 / 关键词管理 / 出价预算"；带周几、月份、节假日与调休哑变量的对数线性回归（HC3 稳健标准误）+ Mann–Whitney 检验量化时间规律与假日效应；非负最小二乘把日注册数归因到各推广单元的点击（MDR-0002/0003）。
 
 **关键数值（键名）**：`TotalSpend`, `TotalClicks`, `TotalImpressions`, `TotalRegs`, `OverallCtrPct`, `OverallCpc`, `TopSharePct`, `FirstSharePct`, `TopClickSharePct`, `TopSpendSharePct`, `TopCpc`, `OtherCpc`, `BiggestUnitId`, `BiggestUnitSpendSharePct`, `ActiveKeywords`, `ZeroKeywords`, `UniqueKeywordIds`, `SharedKeywordIds`, `GiniSpendActive`, `TopTenSpendSharePct`, `TopHundredSpendSharePct`, `Holiday{Reg,Spend,Clicks,Imp}EffectPct/CiLow/CiHigh/P`, `HolidayRegGivenSpendEffectPct/CiLow/CiHigh/P`, `RegSpendElasticity(Se)`, `{Monday,Saturday,Sunday,AdjustedWorkday,PreHoliday,PostHoliday}RegEffectPct/RegP`, `MondayRegGivenSpendEffectPct`, `SundayRegGivenSpendEffectPct`, `HolidayCpcEffect/P`, `MondayCpcEffect/P`, `RegCalendarRsq`, `RegWeekdayWaldP`, `HolidayRegMedianRatio`, `HolidayRegMannWhitneyP`, `AttributionLambda`, `AttributionRsq`, `AttributionHoldoutRsq`, `AttributionHoldoutMape`, `BaselineRegsPerDay`, `PooledRegRatePerHundredClicks`, `AttributedRegs`, `CostPerAttributedReg`, `UnitsWithOwnRate`, `PooledGamma`, `PooledGammaSe`, `MinUnitGamma`, `MaxUnitGamma`, `UnitsWithOwnGamma`.
+
+**v1.0.1 新增键**：回归估计与采用值的区分 `MinUnitGammaHat`, `MaxUnitGammaHat`, `UnitsGammaHatBelowOne`, `UnitsGammaHatAboveOne`, `GammaAboveOne{UnitId,Hat,Se,T,ActiveDays}`, `GammaShort{UnitId,ActiveDays,Hat,Days}`, `GammaMinActiveDays`；上限依据 `{Min,Max,Median}PninefiveSpendRatio`；式 (5) 的不确定性 `{Holiday,Monday,Sunday}{OptimalCutPct,OptimalCutCiLowPct,OptimalCutCiHighPct,ActualCutPct,ThetaStar,ProbOptimalDeeperPct,CutAtPooledGammaPct,DemandDeltaCiLowPct,DemandDeltaCiHighPct}`, `ThetaCiLow/High`, `HolidayThetaStarInsideCi`；对数尺度分解 `HolidayDemandLogSharePct`, `HolidaySupplyLogSharePct`；归因诊断 `AttributionZeroBoundUnits`, `AttributionConditionNumber`, `AttributionMaxSwingRatio`, `AttributionBoot`, `Decomp{InterceptRegs,InterceptPct,CalendarRegs,CalendarPct,SemRegs,SemPct,NonSemPerDay}`；展现结构 `OtherRegionClickSharePct`, `OtherRegionImpSharePct`, `TopOverOtherCtrRatio`。
 
 **表**：`tab_unit_kpis`（各单元年度 KPI）、`tab_calendar_effects`（日历/假日效应，注册、消费、点击）、`tab_attribution_response`（各单元注册率与来源、归因注册（按实际采用的注册率，MDR-0010）、注册成本、单元估计 $\hat\gamma_u$ 及其 SE、$R^2$、采用的 $\gamma_u$ 与来源）。
 
@@ -42,6 +44,8 @@
 
 **关键数值（键名）**：`{Gold,Key,Potential,Problem,Invalid}Count`, `{...}SpendSharePct`, `{...}Cpc`, `CostThresholdYuan`, `CostThresholdLog`, `BenefitThreshold`, `Weight{Clicks,Views,Engagement,Reg}`, `AgreementJenksMedianPct`, `AgreementGmmJenksPct`, `AgreementJenksEqualWeightsPct`, `EntropyEqualSpearman`, `MedianCostThresholdYuan`, `GmmCostThresholdYuan`.
 
+**v1.0.1 新增键**：两轴共线性与口径对照 `AxisPearson`, `AxisPearsonRsq`, `AxisSpearman`, `AxisSpearmanClicks`, `AxisSpearmanEfficiency`, `AxisEfficiencyAgreementPct`, `Eff{Gold,Key,Potential,Problem,Invalid}Count`, `{Gold,Key,Potential,Problem,Invalid}ClickSharePct`, `GoldSpendSharePctFine`, `EngagementVariantAgreementPct`。
+
 **表**：`tab_class_summary`（各类数量、消费占比、CPC、平均效益、归因注册）、`tab_class_robustness`（不同阈值方法/权重下的类别数量）、`tab_class_per_unit`（单元 × 类别）。
 
 **图与建议图注**：
@@ -59,6 +63,8 @@
 **方法一句话**：每个单元-日求解可分离凹规划 $\max\sum_i \rho_i c_i (x_i/s_i)^{\gamma_u}$ s.t. 预算（= 当日实际消费）与上限、最小投放额 0.5 元（选择机制）；两阶段拉格朗日 + 精确注水求解，独立校验器复核 KKT、配对转移与凸松弛上界（MDR-0005/0006/0007）。
 
 **关键数值（键名）**：`QthreeBudget{Feb,Aug}`, `QthreeOptRegs{..}`, `QthreePropRegs{..}`, `QthreeOptClicks{..}`, `QthreePropClicks{..}`, `QthreeActualClicks{..}`, `QthreeRegGainPct{..}`, `QthreeRegGainCiLow/High{..}`, `QthreeClickGainPct{..}`, `QthreeEqualRegGainPct{..}`, `QthreeUnitDays{..}`, `QthreeUnits{..}`, `QthreeSelectedKeywords{..}`, `QthreeEligibleKeywords{..}`, `QthreeAvgCpc{..}`, `QthreePropCpc{..}`, `QthreeWindowRegs{..}`, `QthreeWindowGainPct{..}`, `QthreeAuditGroups`, `QthreeMaxCvxGap`, `QthreeAggregateGapPct`, `QthreeCalibrationMape`, `QthreeCalibrationMedianApe`, `QthreeRows`, `QthreeCapMultiplier`, `QthreeMinSpend`.
+
+**v1.0.1 新增键**：基线占优 `QthreeMinOptPropRatio`, `QthreeUnitDaysOptAtLeastProp`, `QthreePropBelowFloor(Pct)`, `QthreePropPositiveCoords`；重复投放暴露 `QthreeDupKeywordDays`, `QthreeDupRegs(SharePct)`, `QthreeDupSpend(SharePct)`；校准符号与不变性 `QthreeSignedBiasPct{Feb,Aug}`, `QthreeGainRescaledPct{Feb,Aug}`, `QthreeGainShiftPp`, `QthreeSpendWeightedMape`；跨单元反事实 `QthreeCrossUnitGainPct{Feb,Aug}`, `QthreeCrossUnitDays{Feb,Aug}`；2 月全单元备选 `QthreeFebAlt{Rows,Units,Budget,Regs,Clicks,Keywords}`；灵敏度读数 `QthreeFloorCostPct{Feb,Aug}`, `QthreeSelected{Base,NoFloor}{Feb,Aug}`, `QthreeKappaOneGainPct{Feb,Aug}`, `QthreeKappaClipGainPct{Feb,Aug}`, `QthreeDupBestGainPct{Feb,Aug}`, `QthreeSens{MinGainPct,MaxGainPct,Scenarios}`；跳出率因子 `KappaAtBoundPct`, `KappaMedian`, `KappaRows`。
 
 **表**：`tab_q3_summary`（各窗口各单元：预算、候选/入选词、历史比例 vs 最优注册、提升与自助区间、CPC）、`tab_q3_daily`（逐日汇总）、`tab_q3_window_budget`（窗口预算跨日调配的备选结果）、`tab_q3_sensitivity`（上限倍数、弹性、预算、问题词处理、最小投放额）、`tab_verification`（校验汇总）。
 
@@ -79,6 +85,8 @@
 **方法一句话**：单元级日历回归预测效率乘子、CPC、CTR、展位占比（滚动回测对照季节朴素与 28 日均值），预算 = 2025 同期各单元消费；两层分配（跨日 + 日内）后用 500 个蒙特卡罗情景给出竞价、展现量、展位、点击、浏览、注册的期望与 10%–90% 范围（MDR-0008）。
 
 **关键数值（键名）**：`QfourBudget`, `QfourBudgetAnnualAlt`, `QfourUnits`, `QfourSkippedUnits`, `QfourRows`, `QfourSelectedKeywords`, `Qfour{Clicks,Imp,Views,Regs}{Mean,Low,High}`, `QfourCpc{Mean,Low,High}`, `QfourPosition{Mean,Low,High}`, `QfourScenarios`, `QfourAuditGroups`, `QfourRefClicks`, `QfourClickGainVsRefPct`, `Backtest{Calendar,Naive,Mean}Mae{Eff,Cpc,Ctr,Top,Clicks}`, `Backtest{Calendar,Naive}Mape{..}`, `BacktestCalendarCoverage{..}`, `Backtest{Calendar,Naive}Pinball{..}`.
+
+**v1.0.1 新增键**：两层分解的联合界 `QfourJointGapPct`, `QfourJointMaxGapPct`, `QfourJointMaxGapUnit(Regs)`, `QfourJointMaxGapBigPct`, `QfourJointBigUnits`, `QfourJointUnits`, `QfourDetRegs`；区间宽度与回测 `QfourWidthInflation{Median,Min,Max}`, `BacktestWideCoverage{Eff,Cpc,Ctr,Top,First,Clicks}`, `BacktestWidePinball*`, `Backtest{Calendar,Mean,Wide}Coverage{Min,Max}`, `BacktestOrigins`, `BacktestUnits`；展位结构 `QfourPtopPct`, `QfourPfirstPct`, `QfourPmidPct`；蒙特卡罗精度 `QfourRegsMcSe`, `QfourRegsMcZ`；口径 `QfourCpcScenarioMean`, `QfourBudgetAltOverMainPct`；备选方案 `QfourAlt{Rows,Units,Keywords,Spend,Clicks,Regs}`。
 
 **表**：`tab_backtest`（目标 × 模型的 MAE/RMSE/MAPE/pinball/覆盖率）、`tab_q4_ranges`（题目要求的六个量——竞价/CPC、展现量、展现位、点击量、浏览量、注册量——的 7 日期望与 10%–90% 范围，以及单关键词–日的中位期望与中位范围）、`tab_q4_daily`（逐日投入、CPC、展现量、展位、点击量、浏览量、注册量的期望与范围）、`tab_q4_units`（各单元预算、弹性、候选词、点击与注册范围）。
 
@@ -264,3 +272,102 @@ UNUSED registered keys: 72
 | `QfourViewsHigh` | 121,848.9 | `QfourViewsLow` | 69,297.8 |
 | `QfourViewsMean` | 93,916.4 |  |  |
 
+
+## v1.0.1 审稿修订新增/更新的登记数字
+
+run `20260912-041501-ae773aa`（最终发布口径；///// 全绿，53 项测试通过，qa 15 项检查全部通过）。下表只列本轮新增或改口径的键，其余键见上文。
+
+| 键 | 值 | 键 | 值 |
+|---|---|---|---|
+| `AttributionBoot` | 300 | `AttributionConditionNumber` | 948 |
+| `AttributionHoldoutMape` | 30.19 | `AttributionHoldoutRsq` | 0.7375 |
+| `AttributionLambda` | 0.0 | `AttributionMaxSwingRatio` | 3.6 |
+| `AttributionRsq` | 0.7951 | `AttributionZeroBoundUnits` | 6 |
+| `AxisEfficiencyAgreementPct` | 83.79 | `AxisPearson` | 0.9297 |
+| `AxisPearsonRsq` | 0.864 | `AxisSpearman` | 0.9021 |
+| `AxisSpearmanClicks` | 0.9209 | `AxisSpearmanEfficiency` | -0.4719 |
+| `BacktestCalendarCoverageMax` | 87.3 | `BacktestCalendarCoverageMin` | 78.3 |
+| `BacktestMeanCoverageMax` | 80.3 | `BacktestMeanCoverageMin` | 63.6 |
+| `BacktestOrigins` | 12 | `BacktestUnits` | 11 |
+| `BacktestWideCoverageClicks` | 92.06 | `BacktestWideCoverageCpc` | 88.49 |
+| `BacktestWideCoverageCtr` | 87.93 | `BacktestWideCoverageEff` | 86.78 |
+| `BacktestWideCoverageFirst` | 90.70 | `BacktestWideCoverageMax` | 92.1 |
+| `BacktestWideCoverageMin` | 86.8 | `BacktestWideCoverageTop` | 87.55 |
+| `BacktestWidePinballClicks` | 0.3106 | `BacktestWidePinballCpc` | 0.2010 |
+| `BacktestWidePinballCtr` | 0.2936 | `BacktestWidePinballEff` | 0.1593 |
+| `BacktestWidePinballFirst` | 0.3872 | `BacktestWidePinballTop` | 0.4083 |
+| `DecompCalendarPct` | -33.8 | `DecompCalendarRegs` | -28,873 |
+| `DecompInterceptPct` | 64.8 | `DecompInterceptRegs` | 55,257 |
+| `DecompNonSemPerDay` | 72.3 | `DecompSemPct` | 69.1 |
+| `DecompSemRegs` | 58,929 | `EffGoldCount` | 58 |
+| `EffInvalidCount` | 890 | `EffKeyCount` | 2 |
+| `EffPotentialCount` | 959 | `EffProblemCount` | 318 |
+| `EngagementVariantAgreementPct` | 95.55 | `GammaAboveOneActiveDays` | 223 |
+| `GammaAboveOneHat` | 1.3253 | `GammaAboveOneSe` | 0.0658 |
+| `GammaAboveOneT` | 4.94 | `GammaAboveOneUnitId` | 8878077181 |
+| `GammaMinActiveDays` | 56 | `GammaShortActiveDays` | 56 |
+| `GammaShortDays` | 56 | `GammaShortHat` | 0.4937 |
+| `GammaShortUnitId` | 2526158329 | `GoldClickSharePct` | 0.1786 |
+| `GoldSpendSharePctFine` | 0.0752 | `HolidayActualCutPct` | 76.7 |
+| `HolidayCutAtPooledGammaPct` | 82.1 | `HolidayDemandDeltaCiHighPct` | -5.32 |
+| `HolidayDemandDeltaCiLowPct` | -40.01 | `HolidayDemandLogSharePct` | 21 |
+| `HolidayOptimalCutCiHighPct` | 76.6 | `HolidayOptimalCutCiLowPct` | 26.9 |
+| `HolidayOptimalCutPct` | 64.0 | `HolidayOptimalSpendCutPct` | 64.0 |
+| `HolidayOptimalSpendRatioPct` | 36.0 | `HolidayProbOptimalDeeperPct` | 2 |
+| `HolidaySupplyLogSharePct` | 79 | `HolidayThetaStar` | 0.8057 |
+| `HolidayThetaStarInsideCi` | 1 | `InvalidClickSharePct` | 0.0000 |
+| `KappaAtBoundPct` | 43.7 | `KappaMedian` | 0.6296 |
+| `KappaRows` | 1,337 | `KeyClickSharePct` | 98.7511 |
+| `MaxPninefiveSpendRatio` | 8.07 | `MaxUnitGammaHat` | 1.3253 |
+| `MedianPninefiveSpendRatio` | 2.67 | `MinPninefiveSpendRatio` | 1.74 |
+| `MinUnitGammaHat` | 0.4937 | `MondayActualCutPct` | 59.7 |
+| `MondayCutAtPooledGammaPct` | 50.2 | `MondayDemandDeltaCiHighPct` | 9.17 |
+| `MondayDemandDeltaCiLowPct` | -27.19 | `MondayOptimalCutCiHighPct` | 68.5 |
+| `MondayOptimalCutCiLowPct` | -48.7 | `MondayOptimalCutPct` | 34.0 |
+| `MondayProbOptimalDeeperPct` | 9 | `MondayThetaStar` | 0.8737 |
+| `OtherRegionClickSharePct` | 32.94 | `OtherRegionCtrPct` | 1.67 |
+| `OtherRegionImpSharePct` | 72.89 | `PotentialClickSharePct` | 0.8524 |
+| `ProblemClickSharePct` | 0.2179 | `QfourAltClicks` | 25,130.3 |
+| `QfourAltKeywords` | 274 | `QfourAltRegs` | 2327.0 |
+| `QfourAltRows` | 1803 | `QfourAltSpend` | 27,346.63 |
+| `QfourAltUnits` | 12 | `QfourBudgetAltOverMainPct` | 16.4 |
+| `QfourCpcScenarioMean` | 1.5735 | `QfourDetRegs` | 1187.4 |
+| `QfourJointBigUnits` | 7 | `QfourJointGapPct` | 0.822 |
+| `QfourJointMaxGapBigPct` | 2.08 | `QfourJointMaxGapPct` | 27.49 |
+| `QfourJointMaxGapUnit` | 2526158329 | `QfourJointMaxGapUnitRegs` | 0.52 |
+| `QfourJointUnits` | 10 | `QfourPfirstPct` | 36.0 |
+| `QfourPmidPct` | 20.5 | `QfourPtopPct` | 56.5 |
+| `QfourRegsMcSe` | 5.8 | `QfourRegsMcZ` | 1.2 |
+| `QfourWidthInflationMax` | 4.460 | `QfourWidthInflationMedian` | 1.536 |
+| `QfourWidthInflationMin` | 1.069 | `QthreeCrossUnitDaysAug` | 8 |
+| `QthreeCrossUnitDaysFeb` | 8 | `QthreeCrossUnitGainPctAug` | 32.31 |
+| `QthreeCrossUnitGainPctFeb` | 3.97 | `QthreeDupBestGainPctAug` | 24.65 |
+| `QthreeDupBestGainPctFeb` | 12.32 | `QthreeDupKeywordDays` | 75 |
+| `QthreeDupRegs` | 449.31 | `QthreeDupRegsSharePct` | 16.32 |
+| `QthreeDupSpend` | 7,240.11 | `QthreeDupSpendSharePct` | 14.15 |
+| `QthreeFebAltBudget` | 31,252.92 | `QthreeFebAltClicks` | 18,914.9 |
+| `QthreeFebAltKeywords` | 519 | `QthreeFebAltRegs` | 1866.83 |
+| `QthreeFebAltRows` | 2271 | `QthreeFebAltUnits` | 12 |
+| `QthreeFloorCostPctAug` | 0.116 | `QthreeFloorCostPctFeb` | 0.019 |
+| `QthreeGainRescaledPctAug` | 34.61 | `QthreeGainRescaledPctFeb` | 12.50 |
+| `QthreeGainShiftPp` | 6.62 | `QthreeKappaClipGainPctAug` | 27.13 |
+| `QthreeKappaClipGainPctFeb` | 12.06 | `QthreeKappaOneGainPctAug` | 26.89 |
+| `QthreeKappaOneGainPctFeb` | 11.75 | `QthreeMinOptPropRatio` | 1.0062 |
+| `QthreePropBelowFloor` | 11,301 | `QthreePropBelowFloorPct` | 87.5 |
+| `QthreePropClicksAug` | 24,784.5 | `QthreePropClicksFeb` | 6,335.2 |
+| `QthreePropCpcAug` | 1.5124 | `QthreePropCpcFeb` | 2.1595 |
+| `QthreePropPositiveCoords` | 12,917 | `QthreePropRegsAug` | 1748.04 |
+| `QthreePropRegsFeb` | 459.65 | `QthreeSelectedBaseAug` | 21.7 |
+| `QthreeSelectedBaseFeb` | 20.4 | `QthreeSelectedNoFloorAug` | 116.8 |
+| `QthreeSelectedNoFloorFeb` | 143.0 | `QthreeSensMaxGainPct` | 36.4 |
+| `QthreeSensMinGainPct` | 9.0 | `QthreeSensScenarios` | 14 |
+| `QthreeSignedBiasPctAug` | -30.8 | `QthreeSignedBiasPctFeb` | 12.0 |
+| `QthreeSpendWeightedMape` | 30.6 | `QthreeUnitDaysOptAtLeastProp` | 107 |
+| `SundayActualCutPct` | 52.5 | `SundayCutAtPooledGammaPct` | 46.8 |
+| `SundayDemandDeltaCiHighPct` | 8.33 | `SundayDemandDeltaCiLowPct` | -24.99 |
+| `SundayOptimalCutCiHighPct` | 58.7 | `SundayOptimalCutCiLowPct` | -53.0 |
+| `SundayOptimalCutPct` | 31.3 | `SundayProbOptimalDeeperPct` | 8 |
+| `SundayThetaStar` | 0.8604 | `ThetaCiHigh` | 0.8471 |
+| `ThetaCiLow` | 0.5998 | `TopOverOtherCtrRatio` | 5.5 |
+| `UnitsGammaHatAboveOne` | 1 | `UnitsGammaHatBelowOne` | 10 |
+共 182 个新增键；全部 456 个键见各阶段 numbers.json。

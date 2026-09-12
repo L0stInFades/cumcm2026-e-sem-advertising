@@ -212,6 +212,36 @@ def _load_numbers(run_dir: Path) -> tuple[dict[str, str], list[str]]:
     return numbers, conflicts
 
 
+def _downstream_of(ctx: StageContext) -> set[str]:
+    """Stages that depend (transitively) on the stage rendering the record.
+
+    Their manifests cannot be final while this stage is still running, so any status they
+    carry belongs to an earlier execution and must be labelled as such rather than printed
+    as if it described this build.
+    """
+    from forge.runner import STAGES
+
+    out: set[str] = set()
+    changed = True
+    while changed:
+        changed = False
+        for name, spec in STAGES.items():
+            if name in out or name == ctx.stage:
+                continue
+            if ctx.stage in spec.deps or out & set(spec.deps):
+                out.add(name)
+                changed = True
+    return out
+
+
+def _stage_status(ctx: StageContext, row: dict[str, Any], downstream: set[str]) -> str:
+    if row["stage"] == ctx.stage:
+        return "本表由该阶段渲染，故为 running"
+    if row["stage"] in downstream:
+        return "本表生成后才执行（见第 8 节与发布清单）"
+    return str(row["status"])
+
+
 def _stage_rows(ctx: StageContext) -> list[dict[str, Any]]:
     rows = []
     for manifest in sorted(ctx.run_dir.glob("*/manifest.json")):
@@ -300,10 +330,11 @@ def paper(ctx: StageContext) -> dict[str, Any]:
         "\\begin{longtable}{@{}llrl@{}}",
         "\\toprule 阶段 & 状态 & 用时/s & 输出摘要 (SHA-256 前 12 位) \\\\ \\midrule \\endhead \\bottomrule \\endfoot",
     ]
+    downstream = _downstream_of(ctx)
     repro += [
-        f"\\texttt{{{tex_escape(r['stage'])}}} & "
-        f"{'本表由该阶段渲染，故为 running' if r['stage'] == ctx.stage and r['status'] == 'running' else r['status']} & "
-        f"{r['duration_s'] or 0:.1f} & \\texttt{{{r['outputs_digest'][:12]}}} \\\\"
+        f"\\texttt{{{tex_escape(r['stage'])}}} & {_stage_status(ctx, r, downstream)} & "
+        f"{0.0 if r['stage'] in downstream or r['stage'] == ctx.stage else (r['duration_s'] or 0.0):.1f} & "
+        f"\\texttt{{{'' if r['stage'] in downstream or r['stage'] == ctx.stage else r['outputs_digest'][:12]}}} \\\\"
         for r in stage_rows
     ]
     repro.append("\\end{longtable}")
@@ -436,6 +467,7 @@ def _science_stages(ctx: StageContext) -> list[str]:
 
 def _reproduce_md(ctx: StageContext) -> str:
     rows = _stage_rows(ctx)
+    downstream = _downstream_of(ctx)
     code_ref = ctx.params.get("code_ref") or {}
     manifest = json.loads((ctx.run_dir / "ingest" / "manifest.json").read_text(encoding="utf-8"))
     packages = manifest.get("runtime", {}).get("packages", {})
@@ -455,9 +487,10 @@ def _reproduce_md(ctx: StageContext) -> str:
         "|---|---|---:|---|---|",
     ]
     lines += [
-        f"| {r['stage']} | "
-        f"{'running（本表由该阶段渲染）' if r['stage'] == ctx.stage and r['status'] == 'running' else r['status']} | "
-        f"{r['duration_s'] or 0:.1f} | `{r['outputs_digest'][:16]}` | `{r['modal_task_id'] or ''}` |"
+        f"| {r['stage']} | {_stage_status(ctx, r, downstream)} | "
+        f"{0.0 if r['stage'] in downstream or r['stage'] == ctx.stage else (r['duration_s'] or 0.0):.1f} | "
+        f"`{'' if r['stage'] in downstream or r['stage'] == ctx.stage else r['outputs_digest'][:16]}` | "
+        f"`{r['modal_task_id'] or ''}` |"
         for r in rows
     ]
     lines += [

@@ -15,4 +15,4 @@ python3 tools/cli.py release --version v1.0.0
 
 独立校验与检验报告：问题三与问题四的分配审计分别为 \nolinkurl{allocate/allocation_audit.json} 与 \nolinkurl{forecast/allocation_audit.json}；灵敏度单调性门禁为 \nolinkurl{allocate/sensitivity_monotonicity.json}；基线占优核对为 \nolinkurl{allocate/baseline_feasibility.json}；两层分解的联合松弛界为 \nolinkurl{forecast/joint_relaxation.csv}；分类复核为 \nolinkurl{classify/classification_check.json}；回测明细为 \nolinkurl{forecast/backtest.csv}。备选口径的完整方案为 \nolinkurl{allocate/plan_feb_annual_avg.csv} 与 \nolinkurl{forecast/plan_annual_alt.csv}。
 
-\noindent 上表中 \nolinkurl{paper} 阶段的状态为 running，因为该表正是由 \nolinkurl{paper} 阶段在其自身运行过程中渲染的；其余阶段的状态与用时为最终值。
+\noindent 关于上表的自指性：本表由 \nolinkurl{paper} 阶段在其自身运行过程中渲染，因此 \nolinkurl{paper} 自身只能记为 running；\nolinkurl{qa}、\nolinkurl{package} 与 \nolinkurl{release} 依赖 \nolinkurl{paper}，在本表生成之后才执行，其状态不在此处给出（门禁结论见第~\ref{sec:validation} 节，交付物散列见 \nolinkurl{releases/v1.0.0/release_manifest.json}）。其余阶段的状态、用时与输出摘要均为最终值。

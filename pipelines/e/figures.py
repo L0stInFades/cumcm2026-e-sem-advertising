@@ -389,7 +389,9 @@ def fig_q4_units(ctx: StageContext, per_unit: list[dict[str, Any]]) -> dict[str,
     for yy in y[truncated.to_numpy()]:
         ax.plot(floor, yy, marker="<", ms=5, color="#D55E00", clip_on=False)
     if truncated.any():
-        ax.text(0.02, 0.02, "◀ 10% 分位为 0（对数轴截断）", transform=ax.transAxes, fontsize=6.5, color="#D55E00")
+        ax.text(
+            0.02, 0.02, "左向箭头：10% 分位为 0（对数轴截断）", transform=ax.transAxes, fontsize=6.5, color="#D55E00"
+        )
     return plotting.save(fig, ctx.out("figures", "fig_q4_units.pdf"))
 
 
