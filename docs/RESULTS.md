@@ -97,53 +97,46 @@
 
 ## 本次 run 的全部登记数字
 
-run：`20260912-041501-ae773aa`（全部 11 个阶段 completed；paper/qa 门禁见 CHANGELOG）。以下为各阶段 `numbers.json` 的内容，论文中以 `\val<键>` 引用；此处仅供撰写者核对。
+run：`20260912-041501-ae773aa`（ingest、validate、eda、classify、allocate、forecast、results、figures、tables、lint、test 全部 completed；paper/qa/package/release 门禁见 CHANGELOG）。以下为各阶段 `numbers.json` 的内容（论文撰写阶段重跑后的最终值），论文中以 `\val<键>` 引用；此处仅供撰写者核对。
+USED 205 REGISTERED 277
+MISSING (used in manuscript, not registered): []
+UNUSED registered keys: 72
 
-### `eda` 阶段登记的数字（82 个）
+
+### `allocate` 阶段登记的数字（59 个）
 
 | 键 | 值 | 键 | 值 |
 |---|---|---|---|
-| `ActiveKeywords` | 1337 | `AdjustedWorkdayRegEffectPct` | -2.42 |
-| `AdjustedWorkdayRegP` | 0.9419 | `AttributedRegs` | 58,929 |
-| `AttributionHoldoutMape` | 30.19 | `AttributionHoldoutRsq` | 0.7375 |
-| `AttributionLambda` | 0.0 | `AttributionRsq` | 0.7951 |
-| `BaselineRegsPerDay` | 151.39 | `BiggestUnitId` | 9657930100 |
-| `BiggestUnitSpendSharePct` | 56.67 | `CostPerAttributedReg` | 24.20 |
-| `FirstSharePct` | 10.39 | `GiniSpendActive` | 0.9676 |
-| `HolidayClicksCiHigh` | -68.17 | `HolidayClicksCiLow` | -81.61 |
-| `HolidayClicksEffectPct` | -75.81 | `HolidayClicksP` | 0.0000 |
-| `HolidayCpcEffect` | -0.0240 | `HolidayCpcP` | 0.8043 |
-| `HolidayImpCiHigh` | -63.68 | `HolidayImpCiLow` | -76.49 |
-| `HolidayImpEffectPct` | -70.78 | `HolidayImpP` | 0.0000 |
-| `HolidayRegCiHigh` | -65.47 | `HolidayRegCiLow` | -79.99 |
-| `HolidayRegEffectPct` | -73.72 | `HolidayRegGivenSpendCiHigh` | -5.32 |
-| `HolidayRegGivenSpendCiLow` | -40.01 | `HolidayRegGivenSpendEffectPct` | -24.64 |
-| `HolidayRegGivenSpendP` | 0.0151 | `HolidayRegMannWhitneyP` | 4.56e-14 |
-| `HolidayRegMedianRatio` | 0.2140 | `HolidayRegP` | 0.0000 |
-| `HolidaySpendCiHigh` | -67.61 | `HolidaySpendCiLow` | -83.21 |
-| `HolidaySpendEffectPct` | -76.68 | `HolidaySpendP` | 0.0000 |
-| `KeywordRows` | 2227 | `MaxUnitGamma` | 0.9301 |
-| `MinUnitGamma` | 0.6502 | `MondayCpcEffect` | -0.2360 |
-| `MondayCpcP` | 0.0023 | `MondayRegEffectPct` | -53.81 |
-| `MondayRegGivenSpendEffectPct` | -10.85 | `MondayRegP` | 0.0000 |
-| `OtherCpc` | 1.5377 | `OverallCpc` | 1.7081 |
-| `OverallCtrPct` | 3.70 | `PooledGamma` | 0.8355 |
-| `PooledGammaSe` | 0.0113 | `PooledRegRatePerHundredClicks` | 7.9475 |
-| `PostHolidayRegEffectPct` | -17.29 | `PostHolidayRegP` | 0.4100 |
-| `PreHolidayRegEffectPct` | -54.34 | `PreHolidayRegP` | 0.1482 |
-| `RegCalendarRsq` | 0.4802 | `RegSpendElasticity` | 0.7235 |
-| `RegSpendElasticitySe` | 0.0631 | `RegWeekdayWaldP` | 3.53e-12 |
-| `SaturdayRegEffectPct` | -12.64 | `SaturdayRegP` | 0.1561 |
-| `SharedKeywordIds` | 290 | `SundayRegEffectPct` | -47.36 |
-| `SundayRegGivenSpendEffectPct` | -9.86 | `SundayRegP` | 0.0000 |
-| `TopClickSharePct` | 67.06 | `TopCpc` | 1.7918 |
-| `TopHundredSpendSharePct` | 96.40 | `TopSharePct` | 27.11 |
-| `TopSpendSharePct` | 70.35 | `TopTenSpendSharePct` | 58.41 |
-| `TotalClicks` | 834,815 | `TotalImpressions` | 22,580,381 |
-| `TotalRegs` | 85,313 | `TotalSpend` | 1,425,949.79 |
-| `TotalSpendWan` | 142.59 | `UniqueKeywordIds` | 1884 |
-| `UnitDays` | 2627 | `UnitsWithOwnGamma` | 10 |
-| `UnitsWithOwnRate` | 5 | `ZeroKeywords` | 890 |
+| `QthreeActualClicksAug` | 35,812 | `QthreeActualClicksFeb` | 5,655 |
+| `QthreeAggregateGapPct` | 0.080 | `QthreeAuditGroups` | 107 |
+| `QthreeAvgCpcAug` | 1.3052 | `QthreeAvgCpcFeb` | 1.9273 |
+| `QthreeBudgetAug` | 37,483.78 | `QthreeBudgetFeb` | 13,681.15 |
+| `QthreeCalibrationMape` | 32.92 | `QthreeCalibrationMedianApe` | 22.00 |
+| `QthreeCapMultiplier` | 4.0 | `QthreeCappedKeywordDays` | 339 |
+| `QthreeClickGainPctAug` | 15.87 | `QthreeClickGainPctFeb` | 12.05 |
+| `QthreeCvxTinyGroups` | 13 | `QthreeEligibleKeywordsAug` | 1337 |
+| `QthreeEligibleKeywordsFeb` | 286 | `QthreeEqualRegGainPctAug` | 77.01 |
+| `QthreeEqualRegGainPctFeb` | 88.54 | `QthreeFloorKeywordDaysAug` | 1259 |
+| `QthreeFloorRegsSharePctAug` | 5.49 | `QthreeFloorSpendSharePctAug` | 1.68 |
+| `QthreeMaxCvxGap` | 2.01e-01 | `QthreeMaxCvxGapInformativePct` | 3.404 |
+| `QthreeMaxCvxGapPct` | 20.1 | `QthreeMaxGainUnitAug` | 9700005700 |
+| `QthreeMaxUnitGainPctAug` | 210.5 | `QthreeMeanSelectedAug` | 21.7 |
+| `QthreeMinGainUnitAug` | 9773660250 | `QthreeMinSpend` | 0.50 |
+| `QthreeMinUnitGainPctAug` | 0.7 | `QthreeOptClicksAug` | 28,718.7 |
+| `QthreeOptClicksFeb` | 7,098.4 | `QthreeOptRegsAug` | 2237.43 |
+| `QthreeOptRegsFeb` | 516.42 | `QthreePropClicksAug` | 24,784.5 |
+| `QthreePropClicksFeb` | 6,335.2 | `QthreePropCpcAug` | 1.5124 |
+| `QthreePropCpcFeb` | 2.1595 | `QthreePropRegsAug` | 1748.04 |
+| `QthreePropRegsFeb` | 459.65 | `QthreeRegGainCiHighAug` | 28.57 |
+| `QthreeRegGainCiHighFeb` | 13.39 | `QthreeRegGainCiLowAug` | 27.53 |
+| `QthreeRegGainCiLowFeb` | 11.67 | `QthreeRegGainPctAug` | 28.00 |
+| `QthreeRegGainPctFeb` | 12.35 | `QthreeRows` | 2303 |
+| `QthreeSelectedKeywordDays` | 2303 | `QthreeSelectedKeywordsAug` | 535 |
+| `QthreeSelectedKeywordsFeb` | 73 | `QthreeUnitDaysAug` | 91 |
+| `QthreeUnitDaysFeb` | 16 | `QthreeUnitsAug` | 12 |
+| `QthreeUnitsFeb` | 2 | `QthreeWindowGainPctAug` | 11.25 |
+| `QthreeWindowGainPctFeb` | 0.82 | `QthreeWindowRegsAug` | 2489.11 |
+| `QthreeWindowRegsFeb` | 520.64 |  |  |
 
 ### `classify` 阶段登记的数字（28 个）
 
@@ -164,35 +157,72 @@ run：`20260912-041501-ae773aa`（全部 11 个阶段 completed；paper/qa 门�
 | `WeightClicks` | 0.1966 | `WeightEngagement` | 0.2849 |
 | `WeightReg` | 0.3092 | `WeightViews` | 0.2093 |
 
-### `allocate` 阶段登记的数字（46 个）
+### `eda` 阶段登记的数字（119 个）
 
 | 键 | 值 | 键 | 值 |
 |---|---|---|---|
-| `QthreeActualClicksAug` | 35,812 | `QthreeActualClicksFeb` | 5,655 |
-| `QthreeAggregateGapPct` | 0.080 | `QthreeAuditGroups` | 107 |
-| `QthreeAvgCpcAug` | 1.3052 | `QthreeAvgCpcFeb` | 1.9273 |
-| `QthreeBudgetAug` | 37,483.78 | `QthreeBudgetFeb` | 13,681.15 |
-| `QthreeCalibrationMape` | 32.92 | `QthreeCalibrationMedianApe` | 22.00 |
-| `QthreeCapMultiplier` | 4.0 | `QthreeClickGainPctAug` | 15.87 |
-| `QthreeClickGainPctFeb` | 12.05 | `QthreeEligibleKeywordsAug` | 1337 |
-| `QthreeEligibleKeywordsFeb` | 286 | `QthreeEqualRegGainPctAug` | 77.01 |
-| `QthreeEqualRegGainPctFeb` | 88.54 | `QthreeMaxCvxGap` | 2.01e-01 |
-| `QthreeMinSpend` | 0.50 | `QthreeOptClicksAug` | 28,718.7 |
-| `QthreeOptClicksFeb` | 7,098.4 | `QthreeOptRegsAug` | 2237.43 |
-| `QthreeOptRegsFeb` | 516.42 | `QthreePropClicksAug` | 24,784.5 |
-| `QthreePropClicksFeb` | 6,335.2 | `QthreePropCpcAug` | 1.5124 |
-| `QthreePropCpcFeb` | 2.1595 | `QthreePropRegsAug` | 1748.04 |
-| `QthreePropRegsFeb` | 459.65 | `QthreeRegGainCiHighAug` | 28.57 |
-| `QthreeRegGainCiHighFeb` | 13.39 | `QthreeRegGainCiLowAug` | 27.53 |
-| `QthreeRegGainCiLowFeb` | 11.67 | `QthreeRegGainPctAug` | 28.00 |
-| `QthreeRegGainPctFeb` | 12.35 | `QthreeRows` | 2303 |
-| `QthreeSelectedKeywordsAug` | 535 | `QthreeSelectedKeywordsFeb` | 73 |
-| `QthreeUnitDaysAug` | 91 | `QthreeUnitDaysFeb` | 16 |
-| `QthreeUnitsAug` | 12 | `QthreeUnitsFeb` | 2 |
-| `QthreeWindowGainPctAug` | 11.25 | `QthreeWindowGainPctFeb` | 0.82 |
-| `QthreeWindowRegsAug` | 2489.11 | `QthreeWindowRegsFeb` | 520.64 |
+| `ActiveKeywords` | 1337 | `AdjustedWorkdayRegEffectPct` | -2.42 |
+| `AdjustedWorkdayRegP` | 0.9419 | `AttributedRegs` | 60,269 |
+| `AttributedRegsSharePct` | 70.65 | `AttributionHoldoutMape` | 30.19 |
+| `AttributionHoldoutRsq` | 0.7375 | `AttributionLambda` | 0.0 |
+| `AttributionRsq` | 0.7951 | `BaselineRegsPerDay` | 151.39 |
+| `BiggestUnitId` | 9657930100 | `BiggestUnitSpendSharePct` | 56.67 |
+| `CostPerAttributedReg` | 23.66 | `FirstSharePct` | 10.39 |
+| `GiniSpendActive` | 0.9676 | `HolidayClicksCiHigh` | -68.17 |
+| `HolidayClicksCiLow` | -81.61 | `HolidayClicksEffectPct` | -75.81 |
+| `HolidayClicksP` | 0.0000 | `HolidayClicksPSci` | 3.9e-24 |
+| `HolidayCpcEffect` | -0.0240 | `HolidayCpcP` | 0.8043 |
+| `HolidayCtrEffectPp` | -0.242 | `HolidayCtrP` | 0.5740 |
+| `HolidayDays` | 28 | `HolidayImpCiHigh` | -63.68 |
+| `HolidayImpCiLow` | -76.49 | `HolidayImpEffectPct` | -70.78 |
+| `HolidayImpP` | 0.0000 | `HolidayImpPSci` | 1.5e-28 |
+| `HolidayOptimalSpendCutPct` | 64.0 | `HolidayOptimalSpendRatioPct` | 36.0 |
+| `HolidayRegCiHigh` | -65.47 | `HolidayRegCiLow` | -79.99 |
+| `HolidayRegEffectPct` | -73.72 | `HolidayRegGivenSpendCiHigh` | -5.32 |
+| `HolidayRegGivenSpendCiLow` | -40.01 | `HolidayRegGivenSpendEffectPct` | -24.64 |
+| `HolidayRegGivenSpendP` | 0.0151 | `HolidayRegMannWhitneyP` | 4.56e-14 |
+| `HolidayRegMedian` | 58 | `HolidayRegMedianRatio` | 0.2140 |
+| `HolidayRegP` | 0.0000 | `HolidayRegPSci` | 8.0e-22 |
+| `HolidaySpendCiHigh` | -67.61 | `HolidaySpendCiLow` | -83.21 |
+| `HolidaySpendEffectPct` | -76.68 | `HolidaySpendP` | 0.0000 |
+| `HolidaySpendPSci` | 3.9e-18 | `HolidayTopEffectPp` | -4.64 |
+| `HolidayTopP` | 0.0432 | `KeywordRows` | 2227 |
+| `MaxUnitCpc` | 2.25 | `MaxUnitGamma` | 0.9301 |
+| `MaxUnitGammaRsq` | 0.97 | `MinCtrUnitCtrPct` | 0.74 |
+| `MinCtrUnitId` | 4190988309 | `MinUnitCpc` | 0.74 |
+| `MinUnitGamma` | 0.6502 | `MinUnitGammaRsq` | 0.65 |
+| `MondayCpcEffect` | -0.2360 | `MondayCpcP` | 0.0023 |
+| `MondayRegEffectPct` | -53.81 | `MondayRegGivenSpendEffectPct` | -10.85 |
+| `MondayRegGivenSpendP` | 0.2665 | `MondayRegP` | 0.0000 |
+| `OtherCpc` | 1.5377 | `OtherRegionCtrPct` | 1.67 |
+| `OverallCpc` | 1.7081 | `OverallCtrPct` | 3.70 |
+| `PlansCount` | 5 | `PooledGamma` | 0.8355 |
+| `PooledGammaSe` | 0.0113 | `PooledRegRatePerHundredClicks` | 7.9475 |
+| `PostHolidayRegEffectPct` | -17.29 | `PostHolidayRegP` | 0.4100 |
+| `PreHolidayRegEffectPct` | -54.34 | `PreHolidayRegP` | 0.1482 |
+| `RegCalendarRsq` | 0.4802 | `RegGivenSpendRsq` | 0.7829 |
+| `RegSpendElasticity` | 0.7235 | `RegSpendElasticitySe` | 0.0631 |
+| `RegWeekdayWaldP` | 3.53e-12 | `SaturdayRegEffectPct` | -12.64 |
+| `SaturdayRegP` | 0.1561 | `SharedKeywordIds` | 290 |
+| `SharedKeywordRows` | 633 | `SpendCalendarRsq` | 0.5201 |
+| `SundayRegEffectPct` | -47.36 | `SundayRegGivenSpendEffectPct` | -9.86 |
+| `SundayRegGivenSpendP` | 0.2684 | `SundayRegP` | 0.0000 |
+| `TopClickSharePct` | 67.06 | `TopCpc` | 1.7918 |
+| `TopCtrUnitCpc` | 0.74 | `TopCtrUnitCtrPct` | 66.1 |
+| `TopCtrUnitId` | 8878077181 | `TopCtrUnitKeywords` | 4 |
+| `TopCtrUnitTopSharePct` | 88.6 | `TopHundredSpendSharePct` | 96.40 |
+| `TopRegionCtrPct` | 9.15 | `TopSharePct` | 27.11 |
+| `TopSpendSharePct` | 70.35 | `TopTenSpendSharePct` | 58.41 |
+| `TotalClicks` | 834,815 | `TotalImpressions` | 22,580,381 |
+| `TotalRegs` | 85,313 | `TotalSpend` | 1,425,949.79 |
+| `TotalSpendWan` | 142.59 | `UniqueKeywordIds` | 1884 |
+| `UnitDays` | 2627 | `UnitsCount` | 12 |
+| `UnitsWithOwnGamma` | 10 | `UnitsWithOwnRate` | 5 |
+| `WorkdayDays` | 243 | `WorkdayRegMedian` | 271 |
+| `ZeroKeywordSharePct` | 40.0 | `ZeroKeywords` | 890 |
+| `ZeroSpendUnitDays` | 293 |  |  |
 
-### `forecast` 阶段登记的数字（68 个）
+### `forecast` 阶段登记的数字（71 个）
 
 | 键 | 值 | 键 | 值 |
 |---|---|---|---|
@@ -216,18 +246,20 @@ run：`20260912-041501-ae773aa`（全部 11 个阶段 completed；paper/qa 门�
 | `BacktestNaiveMaeTop` | 0.4834 | `BacktestNaivePinballClicks` | 0.3038 |
 | `BacktestNaivePinballCpc` | 0.1913 | `BacktestNaivePinballCtr` | 0.1794 |
 | `BacktestNaivePinballEff` | 0.1399 | `BacktestNaivePinballTop` | 0.2849 |
-| `QfourAuditGroups` | 75 | `QfourBudget` | 23,488.02 |
-| `QfourBudgetAnnualAlt` | 27,346.98 | `QfourClickGainVsRefPct` | 23.64 |
-| `QfourClicksHigh` | 19,870.9 | `QfourClicksLow` | 12,367.2 |
-| `QfourClicksMean` | 15,878.9 | `QfourCpcHigh` | 1.8992 |
-| `QfourCpcLow` | 1.1820 | `QfourCpcMean` | 1.4792 |
-| `QfourImpHigh` | 1,145,018.7 | `QfourImpLow` | 341,532.5 |
-| `QfourImpMean` | 697,420.9 | `QfourPositionMean` | 2.6455 |
+| `QfourAuditGroups` | 75 | `QfourBiggestUnitBudgetSharePct` | 81.1 |
+| `QfourBiggestUnitId` | 9657930100 | `QfourBudget` | 23,488.02 |
+| `QfourBudgetAnnualAlt` | 27,346.98 | `QfourClickGainVsRefPct` | 36.17 |
+| `QfourClicksHigh` | 21,970.2 | `QfourClicksLow` | 13,547.4 |
+| `QfourClicksMean` | 17,487.9 | `QfourCpcHigh` | 1.7337 |
+| `QfourCpcLow` | 1.0691 | `QfourCpcMean` | 1.3431 |
+| `QfourImpHigh` | 1,168,717.5 | `QfourImpLow` | 362,488.7 |
+| `QfourImpMean` | 721,553.1 | `QfourPositionMean` | 2.6126 |
 | `QfourRefClicks` | 12,843 | `QfourRegsExpectedAnnualAlt` | 2327.0 |
-| `QfourRegsExpectedSamePeriod` | 1187.4 | `QfourRegsHigh` | 1,364.1 |
-| `QfourRegsLow` | 854.9 | `QfourRegsMean` | 1,101.5 |
-| `QfourRows` | 845 | `QfourScenarios` | 500 |
-| `QfourSelectedKeywords` | 146 | `QfourSkippedUnits` | 2 |
-| `QfourUnits` | 10 | `QfourViewsHigh` | 106,807.0 |
-| `QfourViewsLow` | 60,552.1 | `QfourViewsMean` | 82,114.8 |
+| `QfourRegsExpectedSamePeriod` | 1187.4 | `QfourRegsGainAnnualAltPct` | 96.0 |
+| `QfourRegsHigh` | 1,495.3 | `QfourRegsLow` | 922.9 |
+| `QfourRegsMean` | 1,194.4 | `QfourRows` | 845 |
+| `QfourScenarios` | 500 | `QfourSelectedKeywords` | 146 |
+| `QfourSkippedUnits` | 2 | `QfourUnits` | 10 |
+| `QfourViewsHigh` | 121,848.9 | `QfourViewsLow` | 69,297.8 |
+| `QfourViewsMean` | 93,916.4 |  |  |
 
