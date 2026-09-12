@@ -188,7 +188,10 @@ def simulate_group(
     rho = params["rho"].to_numpy(dtype=float)
     depth = params["depth"].to_numpy(dtype=float)
     base = c * np.power(np.maximum(x, 0.0) / s, gamma)
-    day = np.exp(eff_mean + eff_sd * rng.standard_normal((n_scen, 1)) - 0.5 * eff_sd**2)
+    # eff_mean is the calendar model's conditional mean of log eff, so the day multiplier is
+    # log-normal with mean exp(eff_mean + eff_sd^2 / 2) -- the same expectation the allocation uses;
+    # the keyword noise is a mean-one multiplicative disturbance around that expectation
+    day = np.exp(eff_mean + eff_sd * rng.standard_normal((n_scen, 1)))
     idio = np.exp(kw_sd * rng.standard_normal((n_scen, n)) - 0.5 * kw_sd**2)
     clicks = base[None, :] * day * idio
     with np.errstate(divide="ignore", invalid="ignore"):

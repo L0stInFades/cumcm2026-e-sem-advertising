@@ -123,6 +123,9 @@ def eda(ctx: StageContext) -> dict[str, Any]:
     ctx.number("TopCpc", s1["上方位消费额"].sum() / s1["上方位点击量"].sum(), ".4f")
     other_clicks = total_clicks - s1["上方位点击量"].sum()
     ctx.number("OtherCpc", (total_spend - s1["上方位消费额"].sum()) / other_clicks, ".4f")
+    top_imp = s1["上方位展现量"].sum()
+    ctx.number("TopRegionCtrPct", 100 * s1["上方位点击量"].sum() / top_imp, ".2f")
+    ctx.number("OtherRegionCtrPct", 100 * other_clicks / (total_imp - top_imp), ".2f")
     ctx.number("UnitDays", len(s1))
     ctx.number("UnitsCount", int(s1["推广单元ID"].nunique()))
     ctx.number("PlansCount", int(s1["方案ID"].nunique()))
@@ -132,6 +135,8 @@ def eda(ctx: StageContext) -> dict[str, Any]:
     ctx.number("SharedKeywordIds", conc["shared_keyword_ids"])
     ctx.number("ActiveKeywords", conc["active_keywords"])
     ctx.number("ZeroKeywords", conc["zero_cost_zero_benefit"])
+    ctx.number("ZeroKeywordSharePct", 100 * conc["zero_cost_zero_benefit"] / conc["keywords"], ".1f")
+    ctx.number("SharedKeywordRows", int((kw["shared_units"] > 1).sum()))
     ctx.number("GiniSpendActive", conc["gini_spend_active"], ".4f")
     ctx.number("TopTenSpendSharePct", 100 * conc["top10_spend_share"], ".2f")
     ctx.number("TopHundredSpendSharePct", 100 * conc["top100_spend_share"], ".2f")
@@ -177,6 +182,12 @@ def eda(ctx: StageContext) -> dict[str, Any]:
     ctx.number("HolidayRegGivenSpendCiLow", ctrl["effect_pct_low"], ".2f")
     ctx.number("HolidayRegGivenSpendCiHigh", ctrl["effect_pct_high"], ".2f")
     ctx.number("HolidayRegGivenSpendP", ctrl["p"], ".4f")
+    # marginal-return equalisation under the log-log response: optimal holiday/normal-day spend ratio
+    # exp(delta_H / (1 - theta)), where delta_H is the demand-side holiday effect and theta the elasticity
+    theta = float(term("regs|spend", "log_spend")["estimate"])
+    holiday_ratio = float(np.exp(float(ctrl["estimate"]) / max(1.0 - theta, 1e-6)))
+    ctx.number("HolidayOptimalSpendRatioPct", 100 * holiday_ratio, ".1f")
+    ctx.number("HolidayOptimalSpendCutPct", 100 * (1 - holiday_ratio), ".1f")
     ctx.number("MondayRegGivenSpendEffectPct", term("regs|spend", "wd_周一")["effect_pct"], ".2f")
     ctx.number("MondayRegGivenSpendP", term("regs|spend", "wd_周一")["p"], ".4f")
     ctx.number("SundayRegGivenSpendEffectPct", term("regs|spend", "wd_周日")["effect_pct"], ".2f")
@@ -1002,6 +1013,12 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
     ctx.number("QfourBudgetAnnualAlt", float(budgets["budget_annual_avg"].sum()), ",.2f")
     ctx.number("QfourRegsExpectedSamePeriod", alt_expected["same_period"], ".1f")
     ctx.number("QfourRegsExpectedAnnualAlt", alt_expected["annual_avg"], ".1f")
+    ctx.number(
+        "QfourRegsGainAnnualAltPct", 100 * (alt_expected["annual_avg"] / max(alt_expected["same_period"], 1e-9) - 1), ".1f"
+    )
+    biggest = per_unit.sort_values("budget", ascending=False).iloc[0]
+    ctx.number("QfourBiggestUnitId", int(biggest["推广单元ID"]))
+    ctx.number("QfourBiggestUnitBudgetSharePct", 100 * float(biggest["budget"]) / float(tot["budget"]), ".1f")
     ctx.number("QfourUnits", len(per_unit))
     ctx.number("QfourSkippedUnits", int(len(units) - len(per_unit)))
     ctx.number("QfourRows", len(plan))
