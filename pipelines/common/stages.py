@@ -25,14 +25,40 @@ PLANNED_STAGE_FILES = {
     "test": ["junit.xml", "coverage.json", "pytest.txt", "test_report.json", "manifest.json", "events.jsonl"],
     "qa": ["qa_report.json", "manifest.json", "events.jsonl"],
 }
+_BOOT_STAGES = ("ingest", "validate", "fmt")
 MEMBER_DESCRIPTIONS = (
+    (r"^forge/plotting\.py$", "绘图规范（矢量 PDF + 预览 PNG、色板、字体）"),
+    (r"^forge/xlsx\.py$", "从组委会模板生成结果工作簿"),
+    (r"^forge/runner\.py$", "阶段注册与执行（依赖、清单、错误捕获）"),
+    (r"^forge/modal_app\.py$", "云端应用定义（镜像、卷、四种规格的执行函数）"),
     (r"^forge/", "云端运行时（阶段执行、清单、契约、排版、打包）"),
     (r"^pipelines/common/", "通用阶段：数据接入、门禁、论文、质量检查、打包发布"),
+    (r"^pipelines/e/data\.py$", "附件解析、口径统一与派生字段"),
+    (r"^pipelines/e/calendar\.py$", "2025 年法定节假日与调休日历"),
+    (r"^pipelines/e/eda\.py$", "问题 1：KPI、集中度、日历回归与注册归因"),
+    (r"^pipelines/e/classify\.py$", "问题 2：关键词五分类与阈值稳健性"),
+    (r"^pipelines/e/response\.py$", "关键词响应函数的拟合与标定"),
+    (r"^pipelines/e/allocate\.py$", "问题 3：可分离凹规划求解与独立校验"),
+    (r"^pipelines/e/forecast\.py$", "问题 4：滚动回测、区间预测与随机分配"),
+    (r"^pipelines/e/figures\.py$", "论文图的生成"),
+    (r"^pipelines/e/tables\.py$", "论文表的生成"),
+    (r"^pipelines/e/stages\.py$", "本题各阶段的编排"),
     (r"^pipelines/", "本题建模与求解程序"),
+    (r"^tools/run_local\.py$", "不依赖云端的本地驱动脚本"),
     (r"^tools/", "本地控制面：提交云端任务、下载、校验散列"),
     (r"^tests/", "单元 / 性质 / 集成测试"),
     (r"^configs/", "运行配置与项目元数据"),
     (r"^manuscript/", "论文 LaTeX 源码"),
+    (r"^docs/mdr/", "建模决策记录（题意解释、假设、目标与方法的选择理由）"),
+    (r"^docs/ARCHITECTURE\.md$", "仓库架构与唯一计算面的设计"),
+    (r"^docs/CONTRIBUTING\.md$", "协作与提交规范"),
+    (r"^docs/DATA_NOTES\.md$", "数据口径与附件解析约定"),
+    (r"^docs/ENGINEERING_STANDARD\.md$", "工程标准与门禁定义"),
+    (r"^docs/MODELING_STANDARD\.md$", "建模与写作标准（审稿清单）"),
+    (r"^docs/RESULTS\.md$", "本轮结果总览与逐项证据"),
+    (r"^docs/RUNBOOK\.md$", "运行手册（完整命令序列与实测用时）"),
+    (r"^docs/REVIEW_RESPONSE\.md$", "评审意见的逐条处理说明"),
+    (r"^docs/problem_brief\.md$", "题目要点与交付清单"),
     (r"^docs/", "工程规范、建模标准、决策记录"),
     (r"/ingest/", "原始数据接入结果（散列、题目文本、规范化数据）"),
     (r"/validate/", "数据契约校验报告与数据画像"),
@@ -53,6 +79,11 @@ MEMBER_DESCRIPTIONS = (
     (r"^UNLICENSE$", "公有领域声明（Unlicense）"),
     (r"^REPRODUCE\.md$", "复现说明"),
     (r"^MANIFEST\.json$", "支撑材料成员清单与 SHA-256"),
+    (r"numbers\.json$", "该阶段登记的论文数字宏"),
+    (r"validation_report\.json$", "该阶段结果的独立校验报告"),
+    (r"\.parquet$", "规范化后的输入数据"),
+    (r"\.json$", "阶段数据产物"),
+    (r"\.csv$", "表格数据（与 LaTeX 表同源）"),
 )
 
 
@@ -467,7 +498,6 @@ def _science_stages(ctx: StageContext) -> list[str]:
 
 def _reproduce_md(ctx: StageContext) -> str:
     rows = _stage_rows(ctx)
-    downstream = _downstream_of(ctx)
     code_ref = ctx.params.get("code_ref") or {}
     manifest = json.loads((ctx.run_dir / "ingest" / "manifest.json").read_text(encoding="utf-8"))
     packages = manifest.get("runtime", {}).get("packages", {})
@@ -487,9 +517,7 @@ def _reproduce_md(ctx: StageContext) -> str:
         "|---|---|---:|---|---|",
     ]
     lines += [
-        f"| {r['stage']} | {_stage_status(ctx, r, downstream)} | "
-        f"{0.0 if r['stage'] in downstream or r['stage'] == ctx.stage else (r['duration_s'] or 0.0):.1f} | "
-        f"`{'' if r['stage'] in downstream or r['stage'] == ctx.stage else r['outputs_digest'][:16]}` | "
+        f"| {r['stage']} | {r['status']} | {r['duration_s'] or 0:.1f} | `{r['outputs_digest'][:16]}` | "
         f"`{r['modal_task_id'] or ''}` |"
         for r in rows
     ]
@@ -497,13 +525,29 @@ def _reproduce_md(ctx: StageContext) -> str:
         "",
         "## 复现命令",
         "",
+        "### A. 云端（本文使用的方式，需要 Modal 账号）",
+        "",
         "```bash",
         "python3 tools/cli.py provision",
         "python3 tools/cli.py run ingest,validate --new-run",
-        f"python3 tools/cli.py run {','.join(s for s in _science_stages(ctx))} --size medium",
-        "python3 tools/cli.py run lint,test,paper,qa,package,release",
+        *[f"python3 tools/cli.py run {r['stage']} --size medium" for r in rows if r["stage"] not in _BOOT_STAGES],
         "python3 tools/cli.py release --version <tag>",
         "```",
+        "",
+        "各阶段的确切参数（线程数、逐级时限）见每个阶段目录下 `manifest.json` 的 `params` 字段，",
+        "以及 `docs/RUNBOOK.md` 第 7 节。",
+        "",
+        "### B. 本地（不需要任何云端账号）",
+        "",
+        "```bash",
+        "pip install pandas numpy openpyxl pyarrow networkx matplotlib ortools highspy",
+        "python3 tools/run_local.py --quick        # 数分钟，得到 result1-4.xlsx、图与表",
+        "python3 tools/run_local.py                # 使用默认（较大）预算",
+        "```",
+        "",
+        "本地驱动脚本调用的是同一批阶段函数，只是把云端卷换成本地目录；",
+        "附件需按原样放在 `附件/` 下。论文排版阶段（paper/qa/package/release）需要 TeX Live 与中文字体，",
+        "不在本地默认序列中。",
         "",
         "每个阶段目录下的 `manifest.json` 记录输入、输出散列、参数与环境；`events.jsonl` 为结构化日志。",
         "",
