@@ -222,7 +222,7 @@ UNUSED registered keys: 72
 | `ZeroKeywordSharePct` | 40.0 | `ZeroKeywords` | 890 |
 | `ZeroSpendUnitDays` | 293 |  |  |
 
-### `forecast` 阶段登记的数字（71 个）
+### `forecast` 阶段登记的数字（73 个）
 
 | 键 | 值 | 键 | 值 |
 |---|---|---|---|
@@ -254,6 +254,7 @@ UNUSED registered keys: 72
 | `QfourCpcLow` | 1.0691 | `QfourCpcMean` | 1.3431 |
 | `QfourImpHigh` | 1,168,717.5 | `QfourImpLow` | 362,488.7 |
 | `QfourImpMean` | 721,553.1 | `QfourPositionMean` | 2.6126 |
+| `QfourPositionLow` | 2.2486 | `QfourPositionHigh` | 3.1264 |
 | `QfourRefClicks` | 12,843 | `QfourRegsExpectedAnnualAlt` | 2327.0 |
 | `QfourRegsExpectedSamePeriod` | 1187.4 | `QfourRegsGainAnnualAltPct` | 96.0 |
 | `QfourRegsHigh` | 1,495.3 | `QfourRegsLow` | 922.9 |
