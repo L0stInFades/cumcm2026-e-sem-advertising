@@ -52,6 +52,13 @@
 \newtheorem{assumption}{假设}
 \newtheorem{remark}[theorem]{注}
 \newcommand{\paperfigure}[4][\linewidth]{\begin{figure}[htbp]\centering\includegraphics[width=#1]{#2}\caption{#3}\label{#4}\end{figure}}
+% Generated tables are bare booktabs tabulars: shrink to the text width only when they are wider than it.
+\newsavebox{\forgetablebox}
+\newcommand{\fitwidth}[1]{\sbox{\forgetablebox}{#1}%
+  \ifdim\wd\forgetablebox>\linewidth\resizebox{\linewidth}{!}{\usebox{\forgetablebox}}\else\usebox{\forgetablebox}\fi}
+\newcommand{\papertable}[3]{\begin{table}[htbp]\centering\caption{#2}\label{#3}\small\setlength{\tabcolsep}{4pt}%
+  \fitwidth{\input{generated/tables/#1}}\end{table}}
+\SetKwInput{KwIn}{输入}\SetKwInput{KwOut}{输出}
 \newcommand{\dd}{\mathrm{d}}
 \newcommand{\pdv}[2]{\frac{\partial #1}{\partial #2}}
 \newcommand{\pdd}[2]{\frac{\partial^2 #1}{\partial #2^2}}
@@ -107,6 +114,10 @@
 论文中的全部数值、表格与图形均由同一次云端运行（run \nolinkurl{\RunId}，代码版本 \nolinkurl{\CodeSha}，构建日期 \BuildDate）生成。各阶段状态与输出摘要如下。
 \input{generated/repro_table.tex}
 \input{sections/appendix_repro.tex}
+
+\section{补充表格}
+\label{app:tables}
+\input{sections/appendix_tables.tex}
 
 \section{完整程序}
 \label{app:code}
