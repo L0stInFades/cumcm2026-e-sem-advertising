@@ -274,7 +274,7 @@ def eda(ctx: StageContext) -> dict[str, Any]:
         ctx.number(f"{key}ActualCutPct", 100 * t["actual_cut"], ".1f")
         ctx.number(f"{key}ThetaStar", t["theta_star"], ".4f")
         ctx.number(f"{key}ProbOptimalDeeperPct", 100 * t["prob_optimal_deeper_than_actual"], ".0f")
-        ctx.number(f"{key}CutAtPooledGammaPct", 100 * list(t["cut_at_alt"].values())[0], ".1f")
+        ctx.number(f"{key}CutAtPooledGammaPct", 100 * next(iter(t["cut_at_alt"].values())), ".1f")
         ctx.number(f"{key}DemandDeltaCiLowPct", 100 * (np.exp(t["delta_ci"][0]) - 1), ".2f")
         ctx.number(f"{key}DemandDeltaCiHighPct", 100 * (np.exp(t["delta_ci"][1]) - 1), ".2f")
     ctx.number("ThetaCiLow", cut["theta_ci"][0], ".4f")
@@ -525,7 +525,7 @@ def _sensitivity(
         ("问题词不降上限", {"problem_cap": 1.0, "relaxation": True}),
         ("最小投放 0（上限同基准）", {"min_spend": 0.0, "caps_as_baseline": True, "relaxation": True}),
         ("最小投放 0（上限随之收缩）", {"min_spend": 0.0}),
-        ("跳出率因子 kappa≡1", {"kappa": "one"}),
+        ("跳出率因子 kappa = 1", {"kappa": "one"}),
         ("kappa 截断 [0.5, 2]", {"kappa": (0.5, 2.0)}),
         ("重复词只留最优副本", {"dup_best": True}),
     ]
@@ -1193,7 +1193,7 @@ def allocate(ctx: StageContext) -> dict[str, Any]:
         ctx.number(f"QthreeFloorCostPct{key}", 100 * (free_regs / max(base_regs, 1e-9) - 1), ".3f")
         ctx.number(f"QthreeSelectedBase{key}", sens_val("基准", window, "selected"), ".1f")
         ctx.number(f"QthreeSelectedNoFloor{key}", sens_val("最小投放 0（上限同基准）", window, "selected"), ".1f")
-        ctx.number(f"QthreeKappaOneGainPct{key}", sens_val("跳出率因子 kappa≡1", window), ".2f")
+        ctx.number(f"QthreeKappaOneGainPct{key}", sens_val("跳出率因子 kappa = 1", window), ".2f")
         ctx.number(f"QthreeKappaClipGainPct{key}", sens_val("kappa 截断 [0.5, 2]", window), ".2f")
         ctx.number(f"QthreeDupBestGainPct{key}", sens_val("重复词只留最优副本", window), ".2f")
     ctx.number("QthreeSensMinGainPct", float(sens["gain"].min()), ".1f")
@@ -1605,8 +1605,8 @@ def forecast(ctx: StageContext) -> dict[str, Any]:
     ctx.number("QfourAuditGroups", len(audits))
     # deployed interval width relative to the backtested residual-only width
     infl = []
-    for unit, targets in unit_fc.items():
-        for target, f in targets.items():
+    for targets in unit_fc.values():
+        for f in targets.values():
             if f["sd"] > 0:
                 infl.append(float(np.sqrt(f["sd"] ** 2 + f["month_sd"] ** 2) / f["sd"]))
     ctx.number("QfourWidthInflationMedian", float(np.median(infl)), ".3f")

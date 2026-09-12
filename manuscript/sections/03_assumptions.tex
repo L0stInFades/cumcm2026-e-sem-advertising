@@ -18,7 +18,7 @@
 \end{assumption}
 
 \begin{assumption}[点击价值与浏览量]\label{as:value}
-关键词每次点击的期望注册 $\rho_i=r_u\kappa_i$，$\kappa_i=(1-b_i)/(1-\bar b_u)$ 为以单元点击加权平均跳出率 $\bar b_u$ 归一的跳出率质量因子（截断到 $[0.25,2.5]$）；浏览量等于点击量乘以该词历史每次点击的浏览页数 $d_i$（无访问记录时用单元均值）。依据：跳出即离开，未跳出的访问才可能注册；$\kappa_i$ 的截断避免极端小样本词主导分配。本假设\emph{无法用数据检验}（注册只有日总量），且 \valKappaAtBoundPct\% 的词落在截断边界上；其影响在第~\ref{sec:val-sens} 节以 $\kappa\equiv1$ 与截断区间 $[0.5,2]$ 两种情形量化。
+关键词每次点击的期望注册 $\rho_i=r_u\kappa_i$，$\kappa_i=(1-b_i)/(1-\bar b_u)$ 为以单元点击加权平均跳出率 $\bar b_u$ 归一的跳出率质量因子（截断到 $[0.25,2.5]$）；浏览量等于点击量乘以该词历史每次点击的浏览页数 $d_i$（无访问记录时用单元均值）。依据：跳出即离开，未跳出的访问才可能注册；$\kappa_i$ 的截断避免极端小样本词主导分配。本假设\emph{无法用数据检验}（注册只有日总量），且 \valKappaAtBoundPct\% 的词落在截断边界上；其影响在第~\ref{sec:val-sens} 节以 $\kappa=1$ 与截断区间 $[0.5,2]$ 两种情形量化。
 \end{assumption}
 
 \begin{assumption}[日效应可分离]\label{as:day}

@@ -17,8 +17,18 @@ from pipelines.e.classify import LABELS
 LABEL_COLORS = {"黄金词": "#E69F00", "重点词": "#0072B2", "潜力词": "#009E73", "问题词": "#D55E00"}
 LABEL_COLORS["无效词"] = "#999999"
 STRATEGY_COLORS = {"最优分配": "#0072B2", "按历史比例": "#D55E00", "均匀分配": "#009E73"}
-MODEL_COLORS = {"calendar": "#0072B2", "seasonal_naive": "#D55E00", "mean28": "#009E73"}
-MODEL_NAMES = {"calendar": "日历回归", "seasonal_naive": "季节朴素", "mean28": "28 日均值"}
+MODEL_COLORS = {
+    "calendar": "#0072B2",
+    "calendar_wide": "#56B4E9",
+    "seasonal_naive": "#D55E00",
+    "mean28": "#009E73",
+}
+MODEL_NAMES = {
+    "calendar": "日历回归（残差区间）",
+    "calendar_wide": "日历回归（部署区间）",
+    "seasonal_naive": "季节朴素",
+    "mean28": "28 日均值",
+}
 
 
 def _shade_holidays(ax: Any) -> None:
@@ -298,21 +308,29 @@ def fig_backtest(ctx: StageContext, bt: pd.DataFrame) -> dict[str, Any]:
         ("log_cpc", "CPC"),
         ("logit_ctr", "CTR"),
         ("logit_top", "上方位占比"),
+        ("logit_first", "首位占比"),
         ("log_clicks", "点击量"),
     ]
+    models = ("calendar", "calendar_wide", "seasonal_naive", "mean28")
     fig, axes = plotting.new_figure(6.3, 2.7, ncols=2)
     x = np.arange(len(targets))
-    for k, model in enumerate(("calendar", "seasonal_naive", "mean28")):
+    width = 0.8 / len(models)
+    for k, model in enumerate(models):
         sub = bt[bt["model"] == model].set_index("target").reindex([t for t, _ in targets])
-        axes[0].bar(x + (k - 1) * 0.27, sub["mae"], width=0.26, color=MODEL_COLORS[model], label=MODEL_NAMES[model])
-        axes[1].bar(x + (k - 1) * 0.27, 100 * sub["coverage80"], width=0.26, color=MODEL_COLORS[model])
+        off = (k - (len(models) - 1) / 2) * width
+        # the two calendar variants share the point forecast; only the interval differs
+        if model != "calendar_wide":
+            axes[0].bar(x + off, sub["mae"], width=width * 0.95, color=MODEL_COLORS[model], label=MODEL_NAMES[model])
+        axes[1].bar(
+            x + off, 100 * sub["coverage80"], width=width * 0.95, color=MODEL_COLORS[model], label=MODEL_NAMES[model]
+        )
     axes[1].axhline(80, color="#444444", lw=0.9, ls="--")
     for ax in axes:
         ax.set_xticks(x)
         ax.set_xticklabels([n for _, n in targets], fontsize=7)
     axes[0].set_ylabel("滚动回测 MAE（变换尺度）")
     axes[1].set_ylabel("80% 区间覆盖率 / %")
-    axes[0].legend(loc="upper left", fontsize=7)
+    axes[1].legend(loc="lower right", fontsize=6, ncol=2)
     return plotting.save(fig, ctx.out("figures", "fig_backtest.pdf"))
 
 
@@ -348,10 +366,15 @@ def fig_q4_units(ctx: StageContext, per_unit: list[dict[str, Any]]) -> dict[str,
     df = pd.DataFrame(per_unit).sort_values("regs_mean", ascending=True)
     fig, ax = plotting.new_figure(5.4, 3.2)
     y = np.arange(len(df))
+    # a log axis cannot show a zero lower bound: clip it to a decade below the smallest
+    # positive value and mark the affected units with an arrow so the truncation is visible
+    floor = max(float(df.loc[df["regs_q10"] > 0, "regs_q10"].min()) / 10, 1e-2) if (df["regs_q10"] > 0).any() else 0.01
+    lo = df["regs_q10"].clip(lower=floor)
+    truncated = df["regs_q10"] <= 0
     ax.errorbar(
         df["regs_mean"],
         y,
-        xerr=[df["regs_mean"] - df["regs_q10"], df["regs_q90"] - df["regs_mean"]],
+        xerr=[df["regs_mean"] - lo, df["regs_q90"] - df["regs_mean"]],
         fmt="o",
         ms=4,
         color="#0072B2",
@@ -363,6 +386,10 @@ def fig_q4_units(ctx: StageContext, per_unit: list[dict[str, Any]]) -> dict[str,
     ax.set_yticklabels([str(u) for u in df["推广单元ID"]], fontsize=7)
     ax.set_xlabel("2026-09-11 至 09-17 预期注册量 / 人（点 = 期望，横线 = 10%–90% 分位）")
     ax.set_xscale("log")
+    for yy in y[truncated.to_numpy()]:
+        ax.plot(floor, yy, marker="<", ms=5, color="#D55E00", clip_on=False)
+    if truncated.any():
+        ax.text(0.02, 0.02, "◀ 10% 分位为 0（对数轴截断）", transform=ax.transAxes, fontsize=6.5, color="#D55E00")
     return plotting.save(fig, ctx.out("figures", "fig_q4_units.pdf"))
 
 

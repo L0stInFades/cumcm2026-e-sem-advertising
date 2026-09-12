@@ -1,11 +1,18 @@
-复现步骤：安装 Modal 客户端并登录后，在仓库根目录依次执行下列命令（可直接复制粘贴）。
+复现步骤：安装 Modal 客户端并登录后，在仓库根目录依次执行下列命令（可直接复制粘贴；第三条为便于排版而折行，实际为一行）。
 
+\begingroup\small
 \begin{verbatim}
 python3 tools/cli.py provision
 python3 tools/cli.py run ingest,validate --new-run
-python3 tools/cli.py run eda,classify,allocate,forecast,results,figures,tables --size medium
+python3 tools/cli.py run eda,classify,allocate,forecast,\
+    results,figures,tables --size medium
 python3 tools/cli.py run lint,test,paper,qa,package,release
 python3 tools/cli.py release --version v1.0.0
 \end{verbatim}
+\endgroup
 
-\noindent 四条命令依次为：验证云端工具链；接入与契约校验；四个问题的科学阶段与结果、图表；门禁、论文、质检、打包与发布。每个阶段目录下的 \texttt{manifest.json} 记录输入输出散列、参数、依赖阶段的输出摘要与环境；\texttt{events.jsonl} 为结构化日志；\texttt{numbers.json} 为该阶段登记的论文数字。随机性只经 \texttt{ctx.seed\_everything} 派生（种子见 \texttt{configs/default.toml}），同一代码与配置下的重跑得到相同的输出摘要。问题三与问题四的独立校验报告分别为 \texttt{allocate/allocation\_audit.json} 与 \texttt{forecast/allocation\_audit.json}，问题三的灵敏度单调性门禁为 \texttt{allocate/sensitivity\_monotonicity.json}，问题四两层分解的联合松弛界为 \texttt{forecast/joint\_relaxation.csv}，分类复核报告为 \texttt{classify/classification\_check.json}，回测明细为 \texttt{forecast/backtest.csv}。上表中 \texttt{paper} 阶段的状态为 running，因为该表正是由 \texttt{paper} 阶段在其自身运行过程中渲染的；其余阶段的状态与用时为最终值。
+\noindent 五条命令依次为：验证云端工具链；接入与契约校验；四个问题的科学阶段与结果、图表；门禁、论文、质检与打包；下载交付物并核对散列。每个阶段目录下的 \nolinkurl{manifest.json} 记录输入输出散列、参数、依赖阶段的输出摘要与环境；\nolinkurl{events.jsonl} 为结构化日志；\nolinkurl{numbers.json} 为该阶段登记的论文数字。随机性只经 \nolinkurl{ctx.seed_everything} 派生（种子见 \nolinkurl{configs/default.toml}），同一代码与配置下的重跑得到相同的输出摘要。
+
+独立校验与检验报告：问题三与问题四的分配审计分别为 \nolinkurl{allocate/allocation_audit.json} 与 \nolinkurl{forecast/allocation_audit.json}；灵敏度单调性门禁为 \nolinkurl{allocate/sensitivity_monotonicity.json}；基线占优核对为 \nolinkurl{allocate/baseline_feasibility.json}；两层分解的联合松弛界为 \nolinkurl{forecast/joint_relaxation.csv}；分类复核为 \nolinkurl{classify/classification_check.json}；回测明细为 \nolinkurl{forecast/backtest.csv}。备选口径的完整方案为 \nolinkurl{allocate/plan_feb_annual_avg.csv} 与 \nolinkurl{forecast/plan_annual_alt.csv}。
+
+\noindent 上表中 \nolinkurl{paper} 阶段的状态为 running，因为该表正是由 \nolinkurl{paper} 阶段在其自身运行过程中渲染的；其余阶段的状态与用时为最终值。
