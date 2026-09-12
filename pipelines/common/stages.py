@@ -301,8 +301,9 @@ def paper(ctx: StageContext) -> dict[str, Any]:
         "\\toprule 阶段 & 状态 & 用时/s & 输出摘要 (SHA-256 前 12 位) \\\\ \\midrule \\endhead \\bottomrule \\endfoot",
     ]
     repro += [
-        f"\\texttt{{{tex_escape(r['stage'])}}} & {r['status']} & {r['duration_s'] or 0:.1f} & "
-        f"\\texttt{{{r['outputs_digest'][:12]}}} \\\\"
+        f"\\texttt{{{tex_escape(r['stage'])}}} & "
+        f"{'本表由该阶段渲染，故为 running' if r['stage'] == ctx.stage and r['status'] == 'running' else r['status']} & "
+        f"{r['duration_s'] or 0:.1f} & \\texttt{{{r['outputs_digest'][:12]}}} \\\\"
         for r in stage_rows
     ]
     repro.append("\\end{longtable}")
@@ -425,6 +426,14 @@ def qa(ctx: StageContext) -> dict[str, Any]:
     return {"passed": passed, "checks": len(checks), "watchlist_hits": len(watch_hits)}
 
 
+FIXED_STAGES = ("ingest", "validate", "lint", "test", "paper", "qa", "package", "release", "fmt")
+
+
+def _science_stages(ctx: StageContext) -> list[str]:
+    """Stage names of this run that are neither intake nor gates -- the project's own scientific stages."""
+    return [r["stage"] for r in _stage_rows(ctx) if r["stage"] not in FIXED_STAGES]
+
+
 def _reproduce_md(ctx: StageContext) -> str:
     rows = _stage_rows(ctx)
     code_ref = ctx.params.get("code_ref") or {}
@@ -446,8 +455,9 @@ def _reproduce_md(ctx: StageContext) -> str:
         "|---|---|---:|---|---|",
     ]
     lines += [
-        f"| {r['stage']} | {r['status']} | {r['duration_s'] or 0:.1f} | `{r['outputs_digest'][:16]}` | "
-        f"`{r['modal_task_id'] or ''}` |"
+        f"| {r['stage']} | "
+        f"{'running（本表由该阶段渲染）' if r['stage'] == ctx.stage and r['status'] == 'running' else r['status']} | "
+        f"{r['duration_s'] or 0:.1f} | `{r['outputs_digest'][:16]}` | `{r['modal_task_id'] or ''}` |"
         for r in rows
     ]
     lines += [
@@ -457,7 +467,7 @@ def _reproduce_md(ctx: StageContext) -> str:
         "```bash",
         "python3 tools/cli.py provision",
         "python3 tools/cli.py run ingest,validate --new-run",
-        "python3 tools/cli.py run <科学阶段...> --size medium",
+        f"python3 tools/cli.py run {','.join(s for s in _science_stages(ctx))} --size medium",
         "python3 tools/cli.py run lint,test,paper,qa,package,release",
         "python3 tools/cli.py release --version <tag>",
         "```",
