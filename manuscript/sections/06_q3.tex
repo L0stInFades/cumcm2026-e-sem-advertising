@@ -34,7 +34,7 @@ q_i(x)=c_i\Bigl(\frac{x}{s_i}\Bigr)^{\gamma_u},\qquad
 \begin{equation}\label{eq:caps}
 \bar x_i=\max\Bigl\{\mu\,\phi_i\,s_i,\ \frac{B_{u,t}\,s_i}{\sum_{j\in\mathcal K^{e}_u}s_j},\ m\Bigr\},\qquad \mu=\valQthreeCapMultiplier,\quad m=\valQthreeMinSpend\ \text{元},
 \end{equation}
-其中 $B_{u,t}$ 为该单元当日的 2025 年实际消费（假设~\ref{as:budget}），目标是当日预期注册量（点击、浏览随之由式~\eqref{eq:response}、\eqref{eq:value} 给出）。上限不低于历史比例份额保证"按历史比例分配"总是可行，从而最优值不低于历史做法；若 $\sum_i\bar x_i<1.2B_{u,t}$ 则等比例放大上限以保证预算可用完。最小投放额 $m$ 是关键词选择机制：投放低于 $m$ 的词视为不投放，避免"每个词分几分钱"的无意义解。写 $a_i=\hat\varepsilon_{u,t}\rho_i c_i s_i^{-\gamma_u}$，目标即 $\sum_i a_i x_i^{\gamma_u}$。
+其中 $B_{u,t}$ 为该单元当日的 2025 年实际消费（假设~\ref{as:budget}），目标是当日预期注册量（点击、浏览随之由式~\eqref{eq:response}、\eqref{eq:value} 给出）。关键词预算分配在文献中通常写成以凹响应为目标的背包型或凸规划问题\cite{feldman2007,zhang2012}，式~\eqref{eq:alloc} 属于这一类，其特点是用最小投放额显式地把"选词"与"定额"合并在一个问题中。上限不低于历史比例份额保证"按历史比例分配"总是可行，从而最优值不低于历史做法；若 $\sum_i\bar x_i<1.2B_{u,t}$ 则等比例放大上限以保证预算可用完。最小投放额 $m$ 是关键词选择机制：投放低于 $m$ 的词视为不投放，避免"每个词分几分钱"的无意义解。写 $a_i=\hat\varepsilon_{u,t}\rho_i c_i s_i^{-\gamma_u}$，目标即 $\sum_i a_i x_i^{\gamma_u}$。
 
 \subsection{求解算法与最优性}
 \label{sec:q3alg}
@@ -66,7 +66,7 @@ $\mathcal S\gets\{i:\ x_i(\lambda_{\mathrm{hi}})>0\}$\;
 \begin{equation}\label{eq:gap}
 \text{总体最优性界}=\frac{\sum_{(u,t)}\bigl[\text{松弛上界}_{u,t}-\text{目标值}_{u,t}\bigr]}{\sum_{(u,t)}\text{目标值}_{u,t}}=\valQthreeAggregateGapPct\%,
 \end{equation}
-即两阶段解与全局最优的差距不超过总注册量的千分之一；去掉 \valQthreeCvxTinyGroups{} 个预算不足 20 倍最小投放额的微小问题后，单个问题的最大相对差为 \valQthreeMaxCvxGapInformativePct\%（微小问题上松弛界不具信息量，最大 \num{\valQthreeMaxCvxGap}，但它们对总量的贡献可忽略）。
+即两阶段解与全局最优的差距不超过总注册量的千分之一；去掉 \valQthreeCvxTinyGroups{} 个预算不足 20 倍最小投放额的微小问题后，单个问题的最大相对差为 \valQthreeMaxCvxGapInformativePct\%（微小问题上松弛界不具信息量，最大相对差 \valQthreeMaxCvxGapPct\%，但它们对总量的贡献可忽略）。
 
 \subsection{反事实基线、不确定性与备选预算口径}
 \label{sec:q3base}
@@ -80,7 +80,7 @@ $\mathcal S\gets\{i:\ x_i(\lambda_{\mathrm{hi}})>0\}$\;
 
 \paperfigure[\linewidth]{fig_q3_gain.pdf}{左、中：两个窗口逐日预期注册量——最优分配、按历史比例、均匀分配；右：弹性参数自助抽样下最优分配相对历史比例的提升分布。}{fig:q3-gain}
 
-提升的来源见图~\ref{fig:alloc-shift}：最优解把预算从 CPC 高、注册率低的词移向 $\rho_i/\mathrm{CPC}_i$ 高的词，后者被推到上限（沿上限线分布，\valQthreeCappedKeywordDays{} 个入选词--日达到上限），大量低效候选词被剔除（每个单元--日平均入选约 20 个词）。提升幅度随单元的候选词数与弹性差异而不同：消费最大的单元 \valBiggestUnitId{} 只有 39 个候选词且弹性最低，提升不到 10\%；候选词多的长尾单元（如 9811363528、9628223555）提升超过 80\%（表~\ref{tab:q3-summary}）。因此"低成本、高效益"的实现路径主要是长尾单元内部的词级再分配，而不是改变类别间的消费结构（重点词在两种方案下都占消费的绝大部分）。
+提升的来源见图~\ref{fig:alloc-shift}。最优解把预算从 CPC 高、注册率低的词移向 $\rho_i/\mathrm{CPC}_i$ 高的词：一部分重点词被推到上限（沿上限线分布，\valQthreeCappedKeywordDays{} 个入选词--日达到上限），另一部分被压缩或剔除（\valKeyCount{} 个重点词中约半数至少入选一天），8 月窗口每个单元--日平均入选 \valQthreeMeanSelectedAug{} 个词。图中位于上限线之上的一簇点是历史日均消费低于 $m/\mu$ 的长尾词（主要是潜力词与黄金词）：按式~\eqref{eq:caps} 其上限就是最小投放额 $m$，它们以每天 $m$ 元的试探性投放入选——8 月窗口这类词--日共 \valQthreeFloorKeywordDaysAug{} 个，只占预算的 \valQthreeFloorSpendSharePctAug\%，贡献预期注册的 \valQthreeFloorRegsSharePctAug\%；幂函数在远离历史工作点处的外推可靠性有限，对这些词的预期只应理解为"值得小额测试"，主要提升仍来自重点词之间的再分配。提升幅度随单元的候选词数与弹性差异而不同：8 月窗口单元 \valQthreeMinGainUnitAug{} 的提升最小（\valQthreeMinUnitGainPctAug\%），单元 \valQthreeMaxGainUnitAug{} 最大（\valQthreeMaxUnitGainPctAug\%）；消费最大的单元 \valBiggestUnitId{} 候选词最少且弹性最低，提升幅度也接近最低（表~\ref{tab:q3-summary}）。因此"低成本、高效益"的实现路径主要是长尾单元内部的词级再分配，而不是改变类别间的消费结构（重点词在两种方案下都占消费的绝大部分）。
 
 \paperfigure[\linewidth]{fig_allocation_shift.pdf}{8 月窗口最优分配的机制。左：每个入选关键词的窗口日均最优投放与其 2025 年日均消费（双对数，颜色为类别；虚线为投放不变，点线为上限倍数）；右：各类别的候选词数与至少入选一天的词数。}{fig:alloc-shift}
 
@@ -88,4 +88,4 @@ $\mathcal S\gets\{i:\ x_i(\lambda_{\mathrm{hi}})>0\}$\;
 
 \papertable{tab_q3_window_budget}{窗口预算跨日调配（备选口径）相对逐日预算的额外提升}{tab:q3-window}
 
-详细结果按模板写入 \texttt{result3.xlsx}（\valQthreeRows{} 行：日期、方案 ID、推广单元、关键词、投入金额、预期展位、预期点击量、预期浏览量、预期注册量；投入金额为式~\eqref{eq:alloc} 的解，预期展位为式~\eqref{eq:position} 的 $\pi$）。策略的优越性归结为四点：(i) 每个单元--日问题的解是带全局最优性证书的最优解（式~\eqref{eq:gap}）；(ii) 同预算下相对 2025 年做法的注册提升为正且区间不含零；(iii) 灵敏度分析（第~\ref{sec:val-sens} 节）中上限倍数、弹性、预算、问题词处理与最小投放额的各种情形下提升均为正（\valQthreeRegGainPctFeb\% 附近与 18\%--36\%）；(iv) 响应模型在历史工作点附近经过校准（第~\ref{sec:val-q3} 节）。
+详细结果按模板写入 \texttt{result3.xlsx}（\valQthreeRows{} 行：日期、方案 ID、推广单元、关键词、投入金额、预期展位、预期点击量、预期浏览量、预期注册量；投入金额为式~\eqref{eq:alloc} 的解，预期展位为式~\eqref{eq:position} 的 $\pi$）。策略的优越性归结为四点：(i) 每个单元--日问题的解是带全局最优性证书的最优解（式~\eqref{eq:gap}）；(ii) 同预算下相对 2025 年做法的注册提升为正且区间不含零；(iii) 灵敏度分析（第~\ref{sec:val-sens} 节）中上限倍数、弹性、预算、问题词处理与最小投放额的各种情形下提升均为正；(iv) 响应模型在历史工作点附近经过校准（第~\ref{sec:val-q3} 节）。

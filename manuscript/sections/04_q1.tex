@@ -31,13 +31,13 @@ G=\frac{n+1-2\sum_{k=1}^{n}\bigl(\sum_{j\le k}S_{(j)}\bigr)/\sum_{j}S_{(j)}}{n}.
 \end{figure}
 
 \paragraph{设计质量与创意}
-账户整体 CTR 为 \valOverallCtrPct\%，CPC \valOverallCpc{} 元。上方位（前三名）展现只占 \valTopSharePct\%（首位 \valFirstSharePct\%），却贡献了 \valTopClickSharePct\% 的点击与 \valTopSpendSharePct\% 的消费：上方位 CTR 为 \valTopRegionCtrPct\%，非上方位仅 \valOtherRegionCtrPct\%，相差五倍以上，而上方位 CPC（\valTopCpc{} 元）只比非上方位（\valOtherCpc{} 元）高约 17\%。因此创意本身在能进入首页上方区域时是有效的，问题在于近四分之三的展现落在上方区域之外且几乎不产生点击——这些展现对应的关键词匹配或质量度不足。单元 \valTopCtrUnitId{} 只有 \valTopCtrUnitKeywords{} 个关键词，CTR 高达 \valTopCtrUnitCtrPct\%、上方位占比 \valTopCtrUnitTopSharePct\%、CPC 仅 \valTopCtrUnitCpc{} 元，属品牌/导航型流量，说明品牌词的创意与匹配是充分的；相反，单元 4190988309 的 CTR 不足 1\%（表~\ref{tab:unit-kpis}），其创意或关键词匹配需要重新审视。
+账户整体 CTR 为 \valOverallCtrPct\%，CPC \valOverallCpc{} 元。上方位（前三名）展现只占 \valTopSharePct\%（首位 \valFirstSharePct\%），却贡献了 \valTopClickSharePct\% 的点击与 \valTopSpendSharePct\% 的消费：上方位 CTR 为 \valTopRegionCtrPct\%，非上方位仅 \valOtherRegionCtrPct\%，相差五倍以上，而上方位 CPC（\valTopCpc{} 元）只比非上方位（\valOtherCpc{} 元）高约 17\%。因此创意本身在能进入首页上方区域时是有效的，问题在于近四分之三的展现落在上方区域之外且几乎不产生点击——这些展现对应的关键词匹配或质量度不足。单元 \valTopCtrUnitId{} 只有 \valTopCtrUnitKeywords{} 个关键词，CTR 高达 \valTopCtrUnitCtrPct\%、上方位占比 \valTopCtrUnitTopSharePct\%、CPC 仅 \valTopCtrUnitCpc{} 元，属品牌/导航型流量，说明品牌词的创意与匹配是充分的；相反，单元 \valMinCtrUnitId{} 的 CTR 仅 \valMinCtrUnitCtrPct\%（表~\ref{tab:unit-kpis}），其创意或关键词匹配需要重新审视。
 
 \paragraph{关键词管理与运用}
 关键词呈极端长尾：\valZeroKeywordSharePct\% 的词全年零消费零点击；有消费的 \valActiveKeywords{} 个词中，前 10 个词占消费 \valTopTenSpendSharePct\%，前 100 个占 \valTopHundredSpendSharePct\%，Gini 系数 \valGiniSpendActive{}（图~\ref{fig:unit-lorenz} 右）。\valSharedKeywordIds{} 个关键词 ID 同时出现在多个单元中，同一账户的不同单元会在同一查询上相互竞价，抬高自身 CPC；关键词库中约四成的词从未获得流量，说明词库缺乏定期清理与匹配方式调整。
 
 \paragraph{出价策略与预算}
-消费在单元间同样集中：单元 \valBiggestUnitId{} 占全年消费 \valBiggestUnitSpendSharePct\%，各单元 CPC 从 0.74 元到 2.25 元不等（表~\ref{tab:unit-kpis}）。第~\ref{sec:q1attr} 节估计的点击--消费弹性 $\gamma_u$ 全部小于 1（合并估计 \valPooledGamma，标准误 \valPooledGammaSe），即边际收益递减；而消费最大的单元 \valBiggestUnitId{} 的弹性最低（表~\ref{tab:attr}），其 CPC 也最高，说明预算在该单元上已进入边际成本快速上升的区域，把部分预算转移到弹性更高、CPC 更低的单元能以同样的钱换取更多点击与注册——这正是问题三、四的优化空间。
+消费在单元间同样集中：单元 \valBiggestUnitId{} 占全年消费 \valBiggestUnitSpendSharePct\%，各单元 CPC 从 \valMinUnitCpc{} 元到 \valMaxUnitCpc{} 元不等（表~\ref{tab:unit-kpis}）。第~\ref{sec:q1attr} 节估计的点击--消费弹性 $\gamma_u$ 全部小于 1（合并估计 \valPooledGamma，标准误 \valPooledGammaSe），即边际收益递减；而消费最大的单元 \valBiggestUnitId{} 的弹性最低（表~\ref{tab:attr}），其 CPC 也最高，说明预算在该单元上已进入边际成本快速上升的区域，把部分预算转移到弹性更高、CPC 更低的单元能以同样的钱换取更多点击与注册——这正是问题三、四的优化空间。
 
 \paragraph{投放策略与时间}
 图~\ref{fig:daily} 显示日消费、点击与注册的全年走势：三条序列高度同步（注册与消费的相关系数约 0.8），春节后 2--3 月出现全年高峰，6--7 月为低谷；每周内呈明显的"周一、周日低"模式，法定节假日（阴影）期间三者同时深跌。这些规律与假日效应在下一小节用回归量化。
@@ -83,7 +83,7 @@ R_t=c_0+\sum_{u\in\mathcal U} r_u\,\tilde C_{u,t}+\bm\beta^{\top}\bm D_t+e_t,\qq
 \begin{equation}\label{eq:elast}
 \log C_{u,t}=a_u+\gamma_u\log S_{u,t}+\sum_{w}\beta_{u,w}D^{w}_t+e_{u,t},
 \end{equation}
-合并模型（单元固定效应）给出 $\gamma=\valPooledGamma$（SE \valPooledGammaSe）；活跃天数不少于 60 且估计落在 $[0.3,0.95]$ 内的 \valUnitsWithOwnGamma{} 个单元采用自身估计（$\valMinUnitGamma$--$\valMaxUnitGamma$），其余（品牌型单元 \valTopCtrUnitId{} 的 $\hat\gamma>1$ 源于品牌流量的爆发式波动，另一单元活跃天数不足）采用合并估计。图~\ref{fig:resp} 表明双对数尺度上的线性关系在各单元都成立，$R^2$ 在 0.65--0.97 之间（表~\ref{tab:attr}）。
+合并模型（单元固定效应）给出 $\gamma=\valPooledGamma$（SE \valPooledGammaSe）；活跃天数不少于 60 且估计落在 $[0.3,0.95]$ 内的 \valUnitsWithOwnGamma{} 个单元采用自身估计（$\valMinUnitGamma$--$\valMaxUnitGamma$），其余（品牌型单元 \valTopCtrUnitId{} 的 $\hat\gamma>1$ 源于品牌流量的爆发式波动，另一单元活跃天数不足）采用合并估计。图~\ref{fig:resp} 表明双对数尺度上的线性关系在各单元都成立，$R^2$ 在 \valMinUnitGammaRsq--\valMaxUnitGammaRsq{} 之间（表~\ref{tab:attr}）。
 
 \papertable{tab_attribution_response}{各单元的注册率（式~\eqref{eq:attr}）、归因注册与注册成本，以及弹性估计（式~\eqref{eq:elast}）与采用值}{tab:attr}
 

@@ -1,1 +1,27 @@
-（模型检验待撰写：收敛性 / 独立校验 / 稳定性 / 灵敏度与不确定性分析。）
+本文对每一个求解结果都用与求解程序分离的校验器复核，并对统计与预测模型做样本外检验（验证协议见支撑材料 \nolinkurl{docs/mdr/0009-verification-protocol.md}）；表~\ref{tab:verification} 汇总检验结论，下面分项说明。
+
+\papertable{tab_verification}{独立检验汇总（全部检验在同一次云端运行中自动执行，任一失败即阶段失败）}{tab:verification}
+
+\subsection{数据与假日效应}
+三张表通过列类型、取值范围与漏斗一致性契约（第~\ref{sec:q1data} 节），Sheet3 与 Sheet1 的分单元合计对账一致。假日效应的两种检验相互印证：HC3 稳健回归给出注册效应 $\valHolidayRegEffectPct\%$（$p=\num{\valHolidayRegPSci}$），Mann--Whitney 检验给出中位数比 \valHolidayRegMedianRatio（$p=\num{\valHolidayRegMannWhitneyP}$）；控制消费额后需求侧效应 $\valHolidayRegGivenSpendEffectPct\%$ 仍显著（$p=\valHolidayRegGivenSpendP$），而周一、周日效应消失，分解结论不依赖单一模型设定。日历设定的正确性由单元测试对照国务院办公厅通知逐日核对。
+
+\subsection{注册归因与弹性的样本外检验}
+归因模型的 adstock 衰减由滚动起点（50\%、60\%、70\%、80\% 处）交叉验证选取，留出期（后 30\% 天数）$R^2=\valAttributionHoldoutRsq$、MAPE \valAttributionHoldoutMape\%（图~\ref{fig:attr}）；留出期覆盖国庆假期，模型仍复现了假日跌幅与周内节律。弹性回归的单元 $R^2$ 见表~\ref{tab:attr}，合并估计的标准误仅 \valPooledGammaSe；弹性的抽样不确定性通过参数自助法进入问题三的提升区间（表~\ref{tab:q3-summary}）。
+
+\subsection{分类的独立复核与稳健性}
+校验器从原始列重新推导每个标签，六项检查（标签在词表内、无效词当且仅当零消费且零点击、象限规则逐词复现、计数守恒、黄金词严格优于问题词、效益指数在 $[0,1]$）全部通过。阈值方法的一致率为 \valAgreementJenksMedianPct\%（中位数）、\valAgreementGmmJenksPct\%（高斯混合）、\valAgreementJenksEqualWeightsPct\%（等权效益），熵权与等权指数的秩相关 \valEntropyEqualSpearman（表~\ref{tab:class-robust}）；自然断点算法与暴力枚举在单元测试中逐例一致，性质测试（随机生成的 20--200 个词）验证每个词恰得一个标签。
+
+\subsection{问题三分配的最优性证书与响应模型校准}
+\label{sec:val-q3}
+校验器对全部 \valQthreeAuditGroups{} 个单元--日问题检查：(i) 非负、不超上限、入选词不低于最小投放额、总投放不超预算且预算用尽或全部达上限；(ii) KKT 条件——内点坐标的边际价值 $\gamma a_ix_i^{\gamma-1}$ 相对离差不超过 $10^{-6}$，达上限坐标的边际不小于影子价格，达下限坐标的边际不大于价格且其平均价值 $a_ix_i^{\gamma-1}$ 覆盖价格；(iii) 200 次随机配对转移或整词剔除、50 次未选词按最小投放额插入均不能改进目标；(iv) 用 CVXPY/Clarabel 求解去掉最小投放额的凸松弛作为上界。全部通过；总体最优性界为 \valQthreeAggregateGapPct\%（式~\eqref{eq:gap}），去掉 \valQthreeCvxTinyGroups{} 个预算不足 20 倍最小投放额的微小问题后单个问题最大相对差 \valQthreeMaxCvxGapInformativePct\%。单元测试另从三个方向核对求解器：无上限时与闭式解一致；小规模实例与网格穷举一致；含最小投放额时与枚举全部入选子集并逐个用 SLSQP 求解的结果一致；基于随机实例的性质测试验证"校验器接受求解器的输出、拒绝人为劣化的解"。
+
+响应模型的校准用"历史比例分配 + 实际预算"应复现实际点击这一事实检验：\valQthreeAuditGroups{} 个单元--日的 MAPE 为 \valQthreeCalibrationMape\%，中位绝对百分误差 \valQthreeCalibrationMedianApe\%。误差主要来自关键词只有年度汇总——响应曲线由年均工作点与单元弹性外推，无法刻画单个词在特定日期的竞争环境；由于最优策略与基线在同一模型、同一日乘子下比较，模型的系统性水平误差在提升幅度中一阶抵消，这也是本文以相对提升而非绝对注册量作为优越性证据的原因。
+
+\subsection{灵敏度分析}
+\label{sec:val-sens}
+表~\ref{tab:q3-sens} 给出十种情形下最优分配相对历史比例的提升。上限倍数是最敏感的参数：它决定预算能向高效率词集中的程度，8 月窗口的提升随 $\mu$ 从 2 升到 8 而增大，但即使在最保守的 $\mu=2$ 下提升仍接近基准的三分之二；弹性上调（凹性减弱）使再分配的收益更大，下调则相反，两者与自助区间的方向一致；预算 $\pm20\%$ 几乎不改变相对提升，说明结论对预算口径不敏感；剔除问题词或取消其上限折减对结果几乎没有影响（问题词仅占消费 \valProblemSpendSharePct\%）；取消最小投放额（$m=0$）使平均入选词数增至一百多个而提升略有下降，说明选择机制以极小的目标代价换来了可执行的稀疏方案。所有情形下提升均为正。
+
+\papertable{tab_q3_sensitivity}{问题三的灵敏度分析：不同建模选择下最优分配相对历史比例的预期注册提升}{tab:q3-sens}
+
+\subsection{问题四的回测、审计与不确定性}
+预测模型的滚动回测（表~\ref{tab:backtest}，图~\ref{fig:backtest}）表明日历回归的 80\% 区间覆盖率为 \valBacktestCalendarCoverageTop\%--\valBacktestCalendarCoverageClicks\%，接近名义水平，而两条基线分别过窄与过宽；点预测在 7 天步长内不如 28 日均值，但目标点在样本末 8.5 个月之后，日历结构是唯一可外推的信息，本文如实报告这一取舍。跨日与日内共 \valQfourAuditGroups{} 个分配问题全部通过与问题三相同的校验器。蒙特卡罗期望注册 \valQfourRegsMean{} 人与确定性目标 \valQfourRegsExpectedSamePeriod{} 人一致，验证了命题~\ref{prop:ce} 与模拟的实现；预算口径的备选（全年日均）作为情景分析给出（第~\ref{sec:q4res} 节）。结果文件 \texttt{result2/3/4.xlsx} 均通过模板契约检查（表名与表头与模板一致、行数、数值区、小数位不超过 4 位）。

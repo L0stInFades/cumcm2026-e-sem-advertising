@@ -29,7 +29,7 @@
 \node[box, right=of q2] (q3) {问题三（优化）\\响应 $q_i(x)=c_i(x/s_i)^{\gamma_u}$\\可分离凹规划 + 注水法};
 \node[box, below=of q3] (q4) {问题四（预测 + 随机分配）\\日历回归 + 滚动回测\\两层分配 + 蒙特卡罗};
 \node[box, left=of q4] (r) {结果文件\\\texttt{result2/3/4.xlsx}};
-\node[vv, below=of q1a.south west, anchor=north west, yshift=-9mm] (vv) {模型检验：数据契约 $\cdot$ 独立校验器（可行性、KKT、配对转移、凸松弛界）$\cdot$ 分类逐词复核 $\cdot$ 留出期与滚动回测 $\cdot$ 自助区间 $\cdot$ 灵敏度};
+\node[vv, below=of q4.south east, anchor=north east] (vv) {模型检验：数据契约 $\cdot$ 独立校验器（可行性、KKT、配对转移、凸松弛界）$\cdot$ 分类逐词复核 $\cdot$ 留出期与滚动回测 $\cdot$ 自助区间 $\cdot$ 灵敏度};
 \draw[arr] (d1) -- (q1a);
 \draw[arr] (d1.south) -- (q1b.north west);
 \draw[arr] (d2) -- (q1b);
@@ -37,11 +37,10 @@
 \draw[arr] (d3.south) -- (q3.north west);
 \draw[arr] (q1b) -- (q2);
 \draw[arr] (q2) -- (q3);
-\draw[arr] (q1b.south east) -- (q3.south west);
 \draw[arr] (q3) -- (q4);
 \draw[arr] (q4) -- (r);
 \draw[arr] (q2.south) -- (r.north east);
-\draw[arr] (d4.south east) to[out=-60,in=60] (q4.north east);
+\draw[arr] (d4.south) -- (q3.north);
 \end{tikzpicture}
 \caption{技术路线：问题一产出的注册率 $r_u$ 与弹性 $\gamma_u$ 贯穿后续三个问题；问题三的分配模型被问题四复用；全部结果经独立检验后写入结果文件。}
 \label{fig:route}
