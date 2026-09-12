@@ -1,0 +1,65 @@
+\section{问题二：关键词的成本--效益分类}
+\label{sec:q2}
+本节把题目的五类落实为"成本尺度 $\times$ 效益指数"平面上的象限划分：先定义成本与复合效益指数，再用数据驱动的阈值划分并检验阈值的稳健性，最后由独立校验器复核每个标签。
+
+\subsection{成本与效益的度量}
+关键词的年度消费 $S_i$ 跨越六个数量级，成本取对数尺度 $x^{c}_i=\log_{10}S_i$（仅对 $S_i>0$ 的词定义）。效益综合四个维度（表~\ref{tab:benefit-comp}）：点击量、浏览量、注意力时长与归因注册，
+\begin{equation}\label{eq:benefit-comp}
+z_{i1}=\log(1+C_i),\quad z_{i2}=\log(1+V_i),\quad z_{i3}=\log\bigl(1+C_i(1-b_i)\tau_i\bigr),\quad z_{i4}=\log\bigl(1+r_{u(i)}C_i\bigr),
+\end{equation}
+其中 $C_i(1-b_i)\tau_i$ 是未跳出访问产生的总停留时间（人$\cdot$秒），$r_{u(i)}$ 为所属单元的注册率（第~\ref{sec:q1attr} 节）；无访问记录（"/"）的词取 $b_i=1$、$\tau_i=0$。对每个分量做极差标准化 $\tilde z_{ij}=(z_{ij}-\min_k z_{kj})/(\max_k z_{kj}-\min_k z_{kj})\in[0,1]$，权重由熵权法\cite{shannon1948}确定：
+\begin{equation}\label{eq:entropy}
+p_{ij}=\frac{\tilde z_{ij}}{\sum_k\tilde z_{kj}},\qquad
+e_j=-\frac{1}{\ln n}\sum_{i}p_{ij}\ln p_{ij},\qquad
+w_j=\frac{1-e_j}{\sum_{l}(1-e_l)},
+\end{equation}
+信息量越大（分布越分散）的分量权重越高。综合效益指数
+\begin{equation}\label{eq:index}
+B_i=\sum_{j=1}^{4}w_j\tilde z_{ij}\in[0,1].
+\end{equation}
+熵权为：点击 \valWeightClicks、浏览 \valWeightViews、注意力时长 \valWeightEngagement、归因注册 \valWeightReg；等权指数与熵权指数的 Spearman 秩相关为 \valEntropyEqualSpearman，说明权重选择对排序几乎没有影响。
+
+\begin{table}[htbp]\centering\small
+\caption{效益指数的四个分量及其业务含义}\label{tab:benefit-comp}
+\begin{tabular}{@{}llll@{}}
+\toprule 分量 & 定义 & 含义 & 熵权 \\ \midrule
+点击量 & $\log(1+C_i)$ & 流量规模 & \valWeightClicks \\
+浏览量 & $\log(1+V_i)$ & 浏览深度 & \valWeightViews \\
+注意力时长 & $\log(1+C_i(1-b_i)\tau_i)$ & 未跳出访问的总停留时间 & \valWeightEngagement \\
+归因注册 & $\log(1+r_{u(i)}C_i)$ & 最终转化 & \valWeightReg \\
+\bottomrule\end{tabular}
+\end{table}
+
+\subsection{阈值与分类规则}
+"高/低"的界限在有消费的词上由数据决定。主方法为两类 Fisher--Jenks 自然断点\cite{fisher1958,jenks1967}：对排序后的样本 $v_{(1)}\le\dots\le v_{(n)}$ 求
+\begin{equation}\label{eq:jenks}
+k^{*}=\arg\min_{1\le k<n}\Bigl[\sum_{i\le k}\bigl(v_{(i)}-\bar v_{\le k}\bigr)^2+\sum_{i>k}\bigl(v_{(i)}-\bar v_{>k}\bigr)^2\Bigr],\qquad
+\text{阈值}=\tfrac12\bigl(v_{(k^{*})}+v_{(k^{*}+1)}\bigr),
+\end{equation}
+利用前缀和可在排序后 $O(n)$ 精确求解，它等价于一维两类 $k$-means 的全局最优解。作为对照，另取中位数与二分量高斯混合模型后验概率 0.5 的交点作阈值。分类规则为
+\begin{equation}\label{eq:rule}
+\text{标签}_i=\begin{cases}
+\text{无效词}, & S_i=0\ \text{且}\ C_i=0,\\
+\text{黄金词}, & x^{c}_i\le\tau_c,\ B_i\ge\tau_b,\\
+\text{重点词}, & x^{c}_i>\tau_c,\ B_i\ge\tau_b,\\
+\text{潜力词}, & x^{c}_i\le\tau_c,\ B_i<\tau_b,\\
+\text{问题词}, & x^{c}_i>\tau_c,\ B_i<\tau_b,
+\end{cases}
+\end{equation}
+无效词按"零消费且零点击"判定（MDR-0001）：未购买任何点击的词不可能通过广告产生效益，两条零消费、零点击但浏览量为 1 的记录视为统计噪声。主方法阈值为成本 \valCostThresholdYuan{} 元/年（$\log_{10}$ 尺度 \valCostThresholdLog）、效益指数 \valBenefitThreshold；中位数法与高斯混合法的成本阈值分别为 \valMedianCostThresholdYuan{} 元与 \valGmmCostThresholdYuan{} 元（图~\ref{fig:thresholds}）。
+
+\subsection{分类结果与稳健性}
+分类结果为：黄金词 \valGoldCount、重点词 \valKeyCount、潜力词 \valPotentialCount、问题词 \valProblemCount、无效词 \valInvalidCount（表~\ref{tab:class-summary}，图~\ref{fig:cost-benefit}；各单元的类别分布见附录表~\ref{tab:class-per-unit}）。\valKeyCount{} 个重点词承担了 \valKeySpendSharePct\% 的消费，CPC \valKeyCpc{} 元，是账户的流量与注册主体；\valGoldCount{} 个黄金词的 CPC 仅 \valGoldCpc{} 元，以极低成本取得高于阈值的效益，是加大出价与预算的首选；\valProblemCount{} 个问题词 CPC 高达 \valProblemCpc{} 元而效益低于阈值，应降低出价、收紧匹配或暂停；\valPotentialCount{} 个潜力词消费与效益都低（CPC \valPotentialCpc{} 元），适合小预算测试以发现新的黄金词；\valInvalidCount{} 个无效词占词库四成，应清理或改用更宽的匹配方式。
+
+\papertable{tab_class_summary}{五类关键词的数量、消费、点击、CPC、平均效益指数与归因注册}{tab:class-summary}
+
+\paperfigure[0.8\linewidth]{fig_cost_benefit.pdf}{关键词的成本--效益散点：横轴为年度消费额（对数轴），纵轴为综合效益指数~\eqref{eq:index}，虚线为自然断点阈值，颜色为类别（无效词零消费未画出）。}{fig:cost-benefit}
+
+\paperfigure[0.9\linewidth]{fig_class_thresholds.pdf}{$\log_{10}$ 年度消费额（左）与综合效益指数（右）的直方图及三种阈值方法的位置。}{fig:thresholds}
+
+阈值方法的稳健性见表~\ref{tab:class-robust}：主方法与中位数法的标签一致率为 \valAgreementJenksMedianPct\%（中位数把阈值压到 \valMedianCostThresholdYuan{} 元，使大量长尾词进入"高成本"），与高斯混合法为 \valAgreementGmmJenksPct\%，与等权效益指数为 \valAgreementJenksEqualWeightsPct\%。无效词在所有方法下都是 \valInvalidCount{} 个，重点词、问题词的成员在三种方法下高度重合，差异集中在阈值附近的潜力词与黄金词之间。
+
+\papertable{tab_class_robustness}{不同阈值方法与权重下的类别数量（成本阈值为原尺度）}{tab:class-robust}
+
+\subsection{独立复核与结果文件}
+与分类程序分离的校验器从原始列重新推导每个标签：标签在词表内、无效词当且仅当零消费且零点击、象限规则~\eqref{eq:rule} 逐词复现（0 个不一致）、五类计数之和等于 \valKeywordRows、黄金词的最大消费不超过问题词的最小消费且最小效益不低于问题词的最大效益、效益指数落在 $[0,1]$；全部通过（第~\ref{sec:validation} 节）。详细结果按模板写入 \texttt{result2.xlsx}（\valKeywordRows{} 行，五个类别列以 1/0 标记）。
